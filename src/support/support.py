@@ -40,7 +40,7 @@ class lvl(str, Enum):
     RESET = "\x1b[0m"       # Reset
 
 
-def debugPrint(level: lvl, msg: str):
+def debugPrint(level: lvl, msg: str)->None:
     """Prints coloured text
 
     Args:
