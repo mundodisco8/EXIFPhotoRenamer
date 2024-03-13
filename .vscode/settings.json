@@ -1,6 +1,0 @@
-{
-    "editor.defaultFormatter": "ms-python.autopep8",
-    "pylint.args": [
-        "--rcfile=.pylintrc"
-    ]
-}

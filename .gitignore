@@ -1,3 +1,9 @@
+#VS Code
+.vscode/*
+
+# Intermediate results
+*.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
