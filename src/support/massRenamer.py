@@ -48,7 +48,7 @@ from natsort import natsorted
 from pathlib import Path
 from re import compile
 from time import time
-from typing import OrderedDict, Dict, Tuple, List, TypedDict
+from typing import OrderedDict, Dict, Tuple, List, TypedDict, Match
 from .support import lvl, debugPrint
 
 # TODO: Software source: Apps leave a tag in Software, but so do iPhone photos.
@@ -222,7 +222,7 @@ def findCreationTime(file: Path, ExifToolData: Dict[str, str], tagsToCheck: List
     return date_, isDatelessFlag
 
 
-def inferDateForDateless(jsonData: OrderedDict[str, metadataDict], jsonKey: str, fileList: List[Path]) -> str:
+def inferDateForDateless(jsonData: OrderedDict[str, metadataDict], jsonKey: str, fileList: List[Path]) -> Tuple[str, str]:
     """
     Infers the date of creation of a file based on previous files.
 
@@ -338,22 +338,20 @@ def hasSidecar(fileName: Path) -> bool:
     Returns:
         True if there's a sidecar with the same name, False otherwise
     """
-    # Strip path in filename and ext
-    # Complete path + filename + ext
-    # debugPrint(lvl.OK, f"Full path {fileName}")
-    # filename only
-    # debugPrint(lvl.WARNING, f"Filename {fileName.stem}")
-    # extension only
-    # debugPrint(lvl.ERROR, f"Extension {fileName.suffix}")
-    # Just the directory path of the file
-    # debugPrint(lvl.OK, f"Parent {fileName.parent}")
+
     sidecar = (Path(fileName.parent) /
+               Path(fileName.stem).with_suffix(".aae"))
+    # for some reason, sometimes they append an 'O' to the name of the file?
+    sidecarO = (Path(fileName.parent) /
                Path(fileName.stem + "O")).with_suffix(".aae")
     if sidecar.is_file():
         # debugPrint(lvl.OK, f"sidecar for {fileName.stem}{fileName.suffix} found")
         return True
+    elif sidecarO.is_file():
+        # debugPrint(lvl.OK, f"sidecar for {fileName.stem}{fileName.suffix} found (with O suffix)")
+        return True
     else:
-        # debugPrint(lvl.ERROR, f"No sidecar for {fileName.stem}{fileName.suffix}")
+        # debugPrint(lvl.ERROR, f"No sidecar for {fileName} / {fileName.stem}{fileName.suffix}")
         return False
 
 ####
@@ -430,7 +428,8 @@ def fixDateless(jsonFile: Path, photosFolder: Path) -> None:
                 if chosenIdx > 0 and chosenIdx < idx:
                     result = dateTimeRegEx.search(
                         datesList[chosenIdx - 1])  # list is 0-indexed
-                    newDate, newTime = result[0].split()
+                    if result:
+                        newDate, newTime = result[0].split()
                 elif chosenIdx == idx:
                     newDate, newTime = inferDate, inferTime
                 elif chosenIdx < 0:
@@ -588,7 +587,7 @@ def generateSortedJSON(path: Path) -> None:
 oldDirectory: Path = Path()
 
 
-def massRenamer(jsonData: OrderedDict[str, metadataDict], isDryRun: bool = False, namePattern: str = "iPhone", selectionSubfolder: str = "") -> None:
+def massRenamer(jsonData: OrderedDict[str, metadataDict], photosDir: Path, isDryRun: bool = False, namePattern: str = "iPhone", selectionSubfolder: str = "") -> None:
     """
     Performs a mass rename based on the contents of a JSON file generated on a previous
     step.
@@ -624,7 +623,7 @@ def massRenamer(jsonData: OrderedDict[str, metadataDict], isDryRun: bool = False
         # This is the list of files we are going to hanlde:
         # Store the current file and the name the file will have after the rename, as Paths
         currentFile = Path(key)
-        renamedFile = currentFile.parent / selectionSubfolder / \
+        renamedFile = photosDir / selectionSubfolder / \
             f"{dateStr.replace(':', '-')} - {namePattern} {counter:>0{numberOfZeroes}}{currentFile.suffix}"
 
         if not renamedFile.parent.is_dir():
@@ -719,9 +718,8 @@ def test():
     # debugPrint(lvl.OK, f"Processed {len(files)} files in {time() - start:0.02f}s")
     # JSON file exists, process it. Pass the dryRun flag
 
-    entry = {"SourceFile": "/media/joel/Backup/Fotos Mac Organizar/2024 - 2/2021-11-04 - iPhone 00.GIF",
-             "XMP:CreateDate": "2021:11:04 18:37:30"}
+    entry = {"SourceFile": "/media/joel/Backup/Fotos Mac Organizar/2016-duplicates/2016-09-22 - iPhone 7.jpeg", "EXIF:CreateDate": "2016:09:22 17:23:40"}
     date_, isDatelessFlag = findCreationTime(Path(
-        "/media/joel/Backup/Fotos\ Mac\ Organizar/2024 - 2/2021-11-04 - iPhone 00.GIF"), entry, photoTagsToCheck)
+        "/media/joel/Backup/Fotos Mac Organizar/2016-duplicates/2016-09-22 - iPhone 7.jpeg"), entry, photoTagsToCheck)
     print(f"{date_}")
     pass

@@ -108,17 +108,17 @@ if args.photosDir:
 
         if screenshotsJson:
 
-            massRenamer(screenshotsJson, args.dryRun, "iPhone Screenshots", "ScreenShots")
+            massRenamer(screenshotsJson, args.photosDir, args.dryRun, "iPhone Screenshots", "ScreenShots")
 
         # Docs that are not screenshots and have no manufacturer data
         noCameraJson: OrderedDict[str, metadataDict] = {key: value for (key, value) in jsonData.items() if jsonData[key]['hasManufacturer'] == False and jsonData[key]['screenshot'] == False} # type: ignore we can't do orderedDict comprehension, so this wil always be flagged
         if noCameraJson:
 
-            massRenamer(noCameraJson, args.dryRun, "WhatsApp", "WhatsApp")
+            massRenamer(noCameraJson, args.photosDir, args.dryRun, "WhatsApp", "WhatsApp")
         # The rest, documents that have manufacturer data (and are not screenshots)
         cameraJson: OrderedDict[str, metadataDict] = {key: value for (key, value) in jsonData.items() if jsonData[key]['hasManufacturer'] == True and jsonData[key]['screenshot'] == False} # type: ignore we can't do orderedDict comprehension, so this wil always be flagged
 
-        massRenamer(cameraJson, args.dryRun, "iPhone")
+        massRenamer(cameraJson, args.photosDir, args.dryRun, "iPhone")
 
         debugPrint(lvl.OK, f"Found {len(screenshotsJson.keys())} Screenshots")
         debugPrint(lvl.OK, f"Found {len(noCameraJson.keys())} Whatsapp")
