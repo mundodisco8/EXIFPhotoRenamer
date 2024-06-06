@@ -47,7 +47,7 @@ parser.add_argument(
 parser.add_argument(
     "--skipBatch", help="If passed, skips the ExifTool batch process", action='store_true')
 parser.add_argument(
-    "--fixDateless", help="After having generated a sorted JSON, finds files without creation dates and infers them", action='store_true')
+    "--fixDatelessInterActive", help="After having generated a sorted JSON, finds files without creation dates interactively", action='store_true')
 parser.add_argument("--test", action='store_true')
 
 args = parser.parse_args()
@@ -66,8 +66,19 @@ if args.test:
     #         debugPrint(lvl.DEBUG, f"{file.name} is screenshot")
     exit(0)
 
-if args.fixDateless:
-    fixDateless(Path("data_file_sorted.json"), Path(args.photosDir))
+if args.fixDatelessInterActive:
+    # Load the JSON metadata: dict with filename as str key and metadataDict as value
+    # Check if JSON exists, in case skipJSON has been passed, but no JSON exists
+    if Path("data_file_sorted.json").is_file == False:
+        debugPrint(lvl.ERROR, "Couldn't find the JSON file with the file data")
+    else:
+        # JSON file exists, process it.
+        with open("data_file_sorted.json", "r") as readFile:
+            jsonData = load(readFile)
+
+    # Get the entries that are marked as dateless from the JSON
+    datelessItems = [key for key in jsonData.keys() if jsonData[key]["dateless"] == True]
+    fixDateless(jsonData, datelessItems, Path(args.photosDir), inferMethod="interactive")
     exit(0)
 
 # Check that either photosDir or printFileTags has been passed

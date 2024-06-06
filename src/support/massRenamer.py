@@ -38,7 +38,7 @@ Functions:
     generateSortedJSON: loops through a folder and generates a JSON file with the images/videos
     on it, and the metadata needed in the renaming process
 """
-from doctest import debug
+from alive_progress import alive_bar
 from exiftool import ExifTool
 from collections import OrderedDict, Counter
 from datetime import datetime, timedelta
@@ -49,6 +49,8 @@ from pathlib import Path
 from re import compile
 from time import time
 from typing import OrderedDict, Dict, Tuple, List, TypedDict, Match
+
+import natsort
 from .support import lvl, debugPrint
 
 # TODO: Software source: Apps leave a tag in Software, but so do iPhone photos.
@@ -71,13 +73,27 @@ class metadataDict(TypedDict):
 
 
 # Filename for the JSON file to use
-jsonFileName = "data_file_sorted.json"
+jsonFileName: str = "data_file_sorted.json"
 # Filename to use the metadata obtained from the ExifTool batch processing
-etJSON = "etJSON.json"
+etJSON: str = "etJSON.json"
 
 # define this to search for "0000:00:00 00:00:00", an empty date and time
 emptyDate: str = "0000:00:00 00:00:00"
 
+# The List of tags to extract with exiftool
+# HACK: sometimes, the filemodifydate tag can help, but it can also be quite harmful, so
+# by default I won't add it to the list of tags
+tagsToExtract: List[str] = ["-UserComment", "-CreateDate", "-DateTimeOriginal",
+                            "-MediaCreareDate", "-Make", "-Model", "-Software", "-filemodifydate"]
+
+# In images, we will check these tags (and in this order) for a date of creation
+photoTagsToCheck: List[str] = ["EXIF:CreateDate",
+                               "EXIF:DateTimeOriginal", "PNG:CreateDate", "XMP:CreateDate", "File:FileModifyDate"]
+# In videos, we check these others
+videoTagsToCheck: List[str] = [
+    "QuickTime:CreateDate", "QuickTime:MediaCreateDate", "File:FileModifyDate"]
+
+####
 ##
 # Compiled Regexes
 ##
@@ -90,14 +106,14 @@ dateTimeRegEx = compile(
     r'(\d{4}\:\d{2}\:\d{2}\s\d{2}\:\d{2}\:\d{2}([\+\-]\d{2}\:\d{2})?)')
 
 # List of known video extensions. Add them in lowercase
-videoExtensions: List[str] = [".mov", ".mp4"]
+videoExtensions: List[str] = [".mov", ".mp4", ".m4v"]
 # List of known photo extensions. Add them in lowercase
 photoExtensions: List[str] = [".heic", ".jpg",
                               ".jpeg", ".png", ".gif", ".tif", ".tiff"]
 # List of known "don't process" files
 dontProcessExtensions: List[str] = [".aae", ".ds_store"]
 
-####
+
 # Misc stuff, helpers, etc
 ####
 
@@ -171,17 +187,17 @@ def stripOffset(date: str) -> Tuple[str, str]:
         strippedDate = date
     return strippedDate, offset
 
+
+def executeExifTool(exifToolInstance: ExifTool, arguments: List[str]) -> bool:
+    output = exifToolInstance.execute(*arguments)
+    if "weren't updated due to errors" in str(output):
+        debugPrint(lvl.ERROR, f"{output}")
+        return False
+    return True
+
 ####
 # Creation date finders
 ####
-
-
-# In images, we will check these tags (and in this order) for a date of creation
-photoTagsToCheck: List[str] = ["EXIF:CreateDate",
-                               "EXIF:DateTimeOriginal", "PNG:CreateDate", "XMP:CreateDate"]
-# In videos, we check these others
-videoTagsToCheck: List[str] = [
-    "QuickTime:CreateDate", "QuickTime:MediaCreateDate"]
 
 
 def findCreationTime(file: Path, ExifToolData: Dict[str, str], tagsToCheck: List[str]) -> Tuple[str, bool]:
@@ -222,7 +238,7 @@ def findCreationTime(file: Path, ExifToolData: Dict[str, str], tagsToCheck: List
     return date_, isDatelessFlag
 
 
-def inferDateForDateless(jsonData: OrderedDict[str, metadataDict], jsonKey: str, fileList: List[Path]) -> Tuple[str, str]:
+def inferDateFromFile(jsonData: OrderedDict[str, metadataDict], jsonKey: str, fileList: List[Path]) -> Tuple[str, str]:
     """
     Infers the date of creation of a file based on previous files.
 
@@ -265,6 +281,142 @@ def inferDateForDateless(jsonData: OrderedDict[str, metadataDict], jsonKey: str,
             newTime = newTime + timedelta(0, i * 5)
     return jsonData[previousKey]['date'], newTime.strftime("%H:%M:%S")
 
+
+def inferDateInteractive(jsonData: OrderedDict[str, metadataDict], jsonKey: str, fileList: List[Path]) -> Tuple[str, str]:
+
+    # # Load the JSON metadata: dict with filename as str key and metadataDict as value
+    # with open(jsonFile, "r") as readFile:
+    #     jsonData = load(readFile)
+
+    with ExifTool() as et:
+        datesList: List = et.execute(
+            "-time:all", "-G1", "-a", "-s", jsonKey).splitlines()
+        # print(datesList)
+        debugPrint(lvl.INFO, "Found these date tags:")
+        # Print the dates found in the file
+        idx: int = 0
+        for idx, date_ in enumerate(datesList):
+            idx += 1
+            debugPrint(lvl.INFO, f"{idx}) {date_}")
+        # Add an entry to the list with the inferred date based on filename.
+        idx += 1
+        inferDate, inferTime = inferDateFromFile(jsonData, jsonKey, fileList)
+        debugPrint(
+            lvl.INFO, f"{idx}) Inferred from filename: \t\t: {inferDate} {inferTime}")
+        debugPrint(
+            lvl.OK, f"Do you want to pick one of these dates [1-{idx}]? (0 to skip this file, -1 if you are bored and want to save and quit)")
+        # Read selected date from console. If the input is not an int, return -1
+        try:
+            chosenIdx = int(input())
+        except:
+            chosenIdx = 0
+        # Pick one of the dates passed, if the index exists, or infer date otherwise
+        try:
+            if chosenIdx > 0 and chosenIdx < idx:
+                result = dateTimeRegEx.search(
+                    datesList[chosenIdx - 1])  # list is 0-indexed
+                if result:
+                    newDate, newTime = result[0].split()
+            elif chosenIdx == idx:
+                newDate, newTime = inferDate, inferTime
+            elif chosenIdx < 0:
+                # You are bored, save and exit
+                jsonData = orderDictByDate(jsonData)
+                with open(jsonFileName, "w+") as write_file:
+                    dump(jsonData, write_file)
+                exit(0)
+            else:
+                # skip the file from being tagged
+                skipFileFlag = True
+        except IndexError:
+            # if the input was not an int, skip this file
+            skipFileFlag = True
+
+        if skipFileFlag:
+            # skipped the file, return an empty date
+            newDate, newTime = emptyDate.split()
+        return newDate, newTime
+
+
+####
+# Creation date fixers
+####
+
+def fixDateWithInferred(jsonFile: Path, filesToFix: List[str], photosFolder: Path) -> None:
+
+    jsonData: OrderedDict[str, metadataDict] = OrderedDict()
+    filesInFolder: List[Path] = getListOfFiles(photosFolder)
+    # Sorting the file lists, as all the work is based on the order of these files in the hard drive
+    filesInFolder = natsorted(filesInFolder)
+    pathsToFix = (photosFolder / file for file in filesToFix)
+    pathsToFix = natsorted(pathsToFix)
+
+    # Load the JSON metadata: dict with filename as str key and metadataDict as value
+    with open(jsonFile, "r") as readFile:
+        jsonData = load(readFile)
+
+    # DICT COMPREHENSION: just the dateless entries. Notice that we only use them to find the keys that are dateless
+    # but we always store the results on jsonData, which contains both dateless and dated elements!
+    # datelessItems = {key: value for (
+    #     key, value) in jsonData.items() if jsonData[key]["dateless"] == True}
+
+    # SHOW PROGRESS
+    totalNumFiles: int = len(pathsToFix)
+
+    # For each file that has the atribute dateless, either:
+    # 1) get all the dates present in the file, print them, and ask which one to use.
+    # 2) infer the date from the previous file, using the filename to decide the order
+    # And then proceed to overwrite the JSON metadata and the file tags with the new date
+    # Finally, we replace the metadata in the file with the newly found data, so we can
+    # proceed to rename
+    with ExifTool() as et:
+        # We loop through datelessItems, but edit jsonData
+        changesDict: dict[str, str] = dict()
+        # Build changesDict, a dict with a date for each file, and print in screen. We will ask if we are happy
+        # with the changes before applying them
+        for filesDone, file_ in enumerate(pathsToFix):
+            # The key for the JSON file is the path to the file to fix as a string
+            key = str(file_)
+            newDate: str = ""
+            skipFileFlag: bool = False
+            inferDate, inferTime = inferDateForDateless(
+                jsonData, key, filesInFolder)
+            debugPrint(lvl.OK, f"chosen {inferDate} {inferTime}")
+            jsonData[key]['date'] = inferDate
+            jsonData[key]['time'] = inferTime
+            jsonData[key]['dateless'] = False
+            # Write the inferred date as a tag. Probably not the most efficient way, but
+            # I don't want to overcomplicate things.
+            # The value of the tag to write, concatenating newDate and newTime
+            tagValue: str = inferDate + " " + inferTime
+            # The tag to use depends on whether it's a video or a photo:
+            changesDict[key] = tagValue
+         # Ask if we are happy with the changes propossed
+        debugPrint(lvl.WARNING, "Are you happy with these dates? (y/n)")
+        response = input()
+        if response != "y":
+            return  # nothing to do
+        # Else, apply the changes
+        with alive_bar(totalNumFiles) as bar:
+            for key in changesDict:
+                bar()
+                if (file_.suffix).lower() in (photoExtensions + videoExtensions):
+                    # Replace all time tags THAT EXIST (don't create new ones) with newDate
+                    if not executeExifTool(et, ["-ee", "-wm", "w", f"-time:all={changesDict[key]}", "-overwrite_original", key]):
+                        debugPrint(
+                            lvl.ERROR, f"Error overwriting date tags on {Path(key).name}")
+                    # If there is no CreateDate tag, create one and apply the value
+                    if not executeExifTool(et, [f"-CreateDate={changesDict[key]}", "-overwrite_original", key]):
+                        debugPrint(
+                            lvl.ERROR, f"Error overwriting date tags on {Path(key).name}")
+                else:
+                    debugPrint(
+                        lvl.ERROR, f"Unhandled case for {Path(key).name}")
+    # All files must have dates now. Reorder dictionary with the new changes, and store in
+    # the JSON file
+    jsonData = orderDictByDate(jsonData)
+    with open(jsonFileName, "w+") as write_file:
+        dump(jsonData, write_file)
 
 ####
 # File finders: return list of files based certain criteria
@@ -343,7 +495,7 @@ def hasSidecar(fileName: Path) -> bool:
                Path(fileName.stem).with_suffix(".aae"))
     # for some reason, sometimes they append an 'O' to the name of the file?
     sidecarO = (Path(fileName.parent) /
-               Path(fileName.stem + "O")).with_suffix(".aae")
+                Path(fileName.stem + "O")).with_suffix(".aae")
     if sidecar.is_file():
         # debugPrint(lvl.OK, f"sidecar for {fileName.stem}{fileName.suffix} found")
         return True
@@ -360,8 +512,9 @@ def hasSidecar(fileName: Path) -> bool:
 ####
 
 
-def fixDateless(jsonFile: Path, photosFolder: Path) -> None:
+def fixDateless(jsonData: OrderedDict[str, metadataDict] , filesToFix: List[str], photosFolder: Path, inferMethod: str, tag: str = "") -> None:
     """
+    TODO: EDIT
     Adds dates of creation to all the files marked as dateless in a JSON.
     NOTE: Edits a JSON file and the photo/video file.
     Finds all the files marked as "dateless" in a JSON file, and offers all the "date" elemens in the file plus the
@@ -373,21 +526,14 @@ def fixDateless(jsonFile: Path, photosFolder: Path) -> None:
         jsonFile: the path to the JSON contaning the files and their metadata
         photosFolder: the path to the root folder, used to obtain jsonFile
     """
-    jsonData: OrderedDict[str, metadataDict] = OrderedDict()
-    files: List[Path] = getListOfFiles(photosFolder)
-    files = natsorted(files)
-
-    # Load the JSON metadata: dict with filename as str key and metadataDict as value
-    with open(jsonFile, "r") as readFile:
-        jsonData = load(readFile)
-
-    # DICT COMPREHENSION: just the dateless entries. Notice that we only use them to find the keys that are dateless
-    # but we always store the results on jsonData, which contains both dateless and dated elements!
-    datelessItems = {key: value for (
-        key, value) in jsonData.items() if jsonData[key]["dateless"] == True}
+    filesInFolder: List[Path] = getListOfFiles(photosFolder)
+    # Sorting the file lists, as all the work is based on the order of these files in the hard drive
+    filesInFolder = natsorted(filesInFolder)
+    pathsToFix = (photosFolder / file for file in filesToFix)
+    pathsToFix = natsorted(pathsToFix)
 
     # SHOW PROGRESS
-    totalNumFiles: int = len(datelessItems)
+    totalNumFiles: int = len(pathsToFix)
 
     # For each file that has the atribute dateless, either:
     # 1) get all the dates present in the file, print them, and ask which one to use.
@@ -396,83 +542,56 @@ def fixDateless(jsonFile: Path, photosFolder: Path) -> None:
     # Finally, we replace the metadata in the file with the newly found data, so we can
     # proceed to rename
     with ExifTool() as et:
-        # We loop through datelessItems, but edit jsonData
-        for filesDone, key in enumerate(datelessItems):
+        # We loop through datelessItems, and will get a date for it with the inference method selected for each file
+        changesDict: dict[str, str] = dict()
+        # Build changesDict, a dict with a date for each file, and print in screen. We will ask if we are happy
+        # with the changes before applying them
+        for file_ in pathsToFix:
+            # The key for the JSON file is the path to the file to fix as a string
+            key = str(file_)
             newDate: str = ""
-            skipFileFlag: bool = False
-            debugPrint(
-                lvl.WARNING, f"{key} doesn't have EXIF creation date tags")
-            datesList: List = et.execute(
-                "-time:all", "-G1", "-a", "-s", key).splitlines()
-            # print(datesList)
-            debugPrint(lvl.INFO, "Found these other dates:")
-            # Print the dates found in the file
-            idx: int = 0
-            for idx, date_ in enumerate(datesList):
-                idx += 1
-                debugPrint(lvl.INFO, f"{idx}) {date_}")
-            # Add an entry to the list with the inferred date based on filename.
-            idx += 1
-            inferDate, inferTime = inferDateForDateless(jsonData, key, files)
-            debugPrint(
-                lvl.INFO, f"{idx}) Inferred from filename: \t\t: {inferDate} {inferTime}")
-            debugPrint(
-                lvl.OK, f"[{filesDone}/{totalNumFiles}] Do you want to pick one of these [1-{idx}]? (0 to skip this file, -1 if you are bored and want to save and quit)")
-            # Read selected date from console. If the input is not an int, return -1
-            try:
-                chosenIdx = int(input())
-            except:
-                chosenIdx = 0
-            # Pick one of the dates passed, if the index exists, or infer date otherwise
-            try:
-                if chosenIdx > 0 and chosenIdx < idx:
-                    result = dateTimeRegEx.search(
-                        datesList[chosenIdx - 1])  # list is 0-indexed
-                    if result:
-                        newDate, newTime = result[0].split()
-                elif chosenIdx == idx:
-                    newDate, newTime = inferDate, inferTime
-                elif chosenIdx < 0:
-                    # You are bored, save and exit
-                    jsonData = orderDictByDate(jsonData)
-                    with open(jsonFileName, "w+") as write_file:
-                        dump(jsonData, write_file)
-                    exit(0)
-                else:
-                    # skip the file from being tagged
-                    skipFileFlag = True
-            except IndexError:
-                # if the input was not an int, skip this file
-                skipFileFlag = True
-            if not skipFileFlag:
-                debugPrint(lvl.OK, f"chosen {newDate} {newTime}")
-                jsonData[key]['date'] = newDate
-                jsonData[key]['time'] = newTime
-                jsonData[key]['dateless'] = False
-                # Write the inferred date as a tag. Probably not the most efficient way, but
-                # I don't want to overcomplicate things.
-                # The value of the tag to write, concatenating newDate and newTime
-                tagValue: str = newDate + " " + newTime
-                # The tag to use depends on whether it's a video or a photo:
-                if (Path(key).suffix).lower() in (photoExtensions + videoExtensions):
+            newTime: str = ""
+            if (inferMethod == "fileInfer"):
+                newDate, newTime = inferDateFromFile(
+                    jsonData, key, filesInFolder)
+            elif (inferMethod == "interactive"):
+                newDate, newTime = inferDateInteractive(
+                    jsonData, key, filesInFolder)
+            debugPrint(lvl.OK, f"Chose {newDate} {newTime}")
+            jsonData[key]['date'] = newDate
+            jsonData[key]['time'] = newTime
+            jsonData[key]['dateless'] = False
+            # Write the inferred date as a tag. Probably not the most efficient way, but
+            # I don't want to overcomplicate things.
+            # The value of the tag to write, concatenating newDate and newTime
+            tagValue: str = newDate + " " + newTime
+            # The tag to use depends on whether it's a video or a photo:
+            changesDict[key] = tagValue
+         # Ask if we are happy with the changes propossed
+        debugPrint(
+            lvl.WARNING, "Are you happy with these dates? (y/n or p if you want to print a list of changes)")
+        response = input()
+        if response == "p":
+            for key in changesDict:
+                debugPrint(lvl.INFO, f"{Path(key).name} -> {changesDict[key]}")
+        elif response != "y":
+            return  # nothing to do, return from function now
+        # Else, apply the changes
+        with alive_bar(totalNumFiles) as bar:
+            for key in changesDict:
+                bar()
+                if (file_.suffix).lower() in (photoExtensions + videoExtensions):
                     # Replace all time tags THAT EXIST (don't create new ones) with newDate
-                    et.execute(
-                        "-ee", "-wm", "w", f"-time:all={tagValue}", "-overwrite_original", key)
+                    if not executeExifTool(et, ["-ee", "-wm", "w", f"-time:all={changesDict[key]}", "-overwrite_original", key]):
+                        debugPrint(
+                            lvl.ERROR, f"Error overwriting date tags on {Path(key).name}")
                     # If there is no CreateDate tag, create one and apply the value
-                    et.execute(f"-CreateDate={tagValue}",
-                               "-overwrite_original", key)
+                    if not executeExifTool(et, [f"-CreateDate={changesDict[key]}", "-overwrite_original", key]):
+                        debugPrint(
+                            lvl.ERROR, f"Error overwriting date tags on {Path(key).name}")
                 else:
                     debugPrint(
                         lvl.ERROR, f"Unhandled case for {Path(key).name}")
-                print(et.execute("-time:all", "-G1", "-a", "-s", key))
-
-            # Save the data every so often. Useful when you have 10s of files to edit and
-            # don't want to do it in one go
-            if filesDone % 25 == 0:
-                jsonData = orderDictByDate(jsonData)
-                with open(jsonFileName, "w+") as write_file:
-                    dump(jsonData, write_file)
-    # And save again at the end of the loop
     # All files must have dates now. Reorder dictionary with the new changes, and store in
     # the JSON file
     jsonData = orderDictByDate(jsonData)
@@ -499,8 +618,7 @@ def doExifToolBatchProcessing(path: Path) -> None:
         # CreateDate: time the file was written to flash (there's also DateTimeOriginal, which is when the shutter was actuated!)
         # MediaCreateDate: alternative for video files to CreateDate, if that's missing
         # Make and Model: used to determine if the doc comes from a "camera" or an "app"
-        etData: List = et.execute_json("-XMP:UserComment", "-CreateDate", "-DateTimeOriginal",
-                                       "-MediaCreareDate", "-Make", "-Model", str(path), "-r")
+        etData: List = et.execute_json(*tagsToExtract, str(path), "-r")
     debugPrint(
         lvl.OK, f"Processed {len(files)} files in {time() - start:0.02f}s")
 
@@ -718,8 +836,62 @@ def test():
     # debugPrint(lvl.OK, f"Processed {len(files)} files in {time() - start:0.02f}s")
     # JSON file exists, process it. Pass the dryRun flag
 
-    entry = {"SourceFile": "/media/joel/Backup/Fotos Mac Organizar/2016-duplicates/2016-09-22 - iPhone 7.jpeg", "EXIF:CreateDate": "2016:09:22 17:23:40"}
-    date_, isDatelessFlag = findCreationTime(Path(
-        "/media/joel/Backup/Fotos Mac Organizar/2016-duplicates/2016-09-22 - iPhone 7.jpeg"), entry, photoTagsToCheck)
-    print(f"{date_}")
-    pass
+    etData: List[OrderedDict] = []
+    with open(etJSON, "r") as readFile:
+        etData = load(readFile)
+
+    keyList: List[str] = []
+    makeList: List[str] = []
+    modelList: List[str] = []
+    softwareList: List[str] = []
+    for item in etData:
+        for key in item.keys():
+            if key not in keyList:
+                keyList.append(key)
+            if "Make" in key and key not in makeList:
+                makeList.append(key)
+            if "Model" in key and key not in modelList:
+                modelList.append(key)
+            if "Software" in key and key not in softwareList:
+                softwareList.append(key)
+
+    # print(keyList)
+    # print(makeList)
+    # print(modelList)
+    # print(softwareList)
+    usedSW: List[str] = []
+    for item in etData:
+        photoMake: str = ""
+        photoModel: str = ""
+        photoSoftware: str = ""
+        for make in makeList:
+            if photoMake == "" and make in item:
+                photoMake = item[make]
+        for model in modelList:
+            if photoModel == "" and model in item:
+                photoModel = item[model]
+        for software in softwareList:
+            if photoSoftware == "" and software in item:
+                photoSoftware = item[software]
+                if "adobe" in str(photoSoftware).lower():
+                    debugPrint(lvl.DEBUG, f"{item['SourceFile']}")
+                if photoSoftware not in usedSW:
+                    usedSW.append(photoSoftware)
+
+        if photoMake != "" and photoMake != "Apple":
+            debugPrint(lvl.INFO, f"{item['SourceFile']}: {photoMake} and {photoModel}")
+        # if photoSoftware != "" and p
+    usedSW = natsorted(usedSW)
+
+    # Date Histogram:
+    # Find how many entries share the same date. We want to know this to figure out
+    # how many zeroes the file index will have, so they are naturally sorted in the
+    # file explorer
+    dateHistogram: dict = Counter()
+    for software in softwareList:
+        dateHistogram.update(item[software] for item in etData if software in item)
+
+    dateHistogram = OrderedDict(sorted(dateHistogram.items(), key=lambda item:item[1]))
+
+    # for key in dateHistogram:
+    #     debugPrint(lvl.OK, f"{key}\t -> \t{dateHistogram[key]}")
