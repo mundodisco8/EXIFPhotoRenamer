@@ -27,7 +27,7 @@ from argparse import ArgumentParser
 from json import load
 from pathlib import Path
 from support.support import lvl, debugPrint
-from support.massRenamer import generateSortedJSON, massRenamer, showAllTags, fixDateless, metadataDict, doExifToolBatchProcessing
+from massRenamer.massRenamer import generateSortedJSON, massRenamer, showAllTags, fixDateless, metadataDict, doExifToolBatchProcessing
 from typing import OrderedDict
 
 def in_virtualenv():
@@ -55,7 +55,7 @@ if not in_virtualenv():
     print("Not in VENV!")
     sys.exit()
 
-from support.massRenamer import test
+from massRenamer.massRenamer import test
 
 if args.test:
     test()
@@ -141,3 +141,36 @@ if args.photosDir:
 #   * Other jpegs seem to come from "tools" (apps, whatsapp) and they normally don't have a `DateTimeOriginal` tag, and their FileModifyDate is the export date from MacOS' Photos
 # * At least on iOS, screenshots have the word `Screenshot` in the tag `User Comment`. They are also PNGs
 # * iOS doesn't seem to use .mp4 either for video, so that could be another lead for whatsapp videos?
+
+
+############## SCRIPTS ################
+# # Load etJSON.json
+# from json import load
+# etData: List = []
+# with open("etJSON.json", "r") as readFile:
+#     etData = load(readFile)
+
+# # Get all the tags captured - Only once
+# all_keys = set().union(*(dict.keys() for dict in etData))
+
+# # Get all the tags captured - All, with repeats
+# all_keys = [item for dict in etData for item in list(dict.keys())]
+
+# # Print n files that have the tagToPrint tag
+# tagToPrint = "PNG:CreateDate"
+# filesToList = 10
+# listFilesTag = [dict['SourceFile'] for dict in etData if tagToPrint in dict.keys()]
+# print('\n'.join(listFilesTag[0:filesToList]))
+
+# # Print all the individual values for a certain tag
+tagToPrint = "EXIF:Make"
+set([dict[tagToPrint] for dict in etData if tagToPrint in dict.keys()])
+
+# # Print all the filenames with a certain value in the tag
+# tagToPrint = "EXIF:Make"
+# tagValue = "Apple"
+# [dict["SourceFile"] for dict in etData if tagToPrint in dict.keys() and tagValue in dict[tagToPrint]]
+
+# # Histogram of tags
+# from collections import Counter
+# dateHistogram = Counter([item for dict in etData for item in list(dict.keys())])

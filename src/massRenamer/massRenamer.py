@@ -38,6 +38,7 @@ Functions:
     generateSortedJSON: loops through a folder and generates a JSON file with the images/videos
     on it, and the metadata needed in the renaming process
 """
+from fileinput import filename
 from alive_progress import alive_bar
 from exiftool import ExifTool
 from collections import OrderedDict, Counter
@@ -51,7 +52,7 @@ from time import time
 from typing import OrderedDict, Dict, Tuple, List, TypedDict, Match
 
 import natsort
-from .support import lvl, debugPrint
+from ..support.support import lvl, debugPrint
 
 # TODO: Software source: Apps leave a tag in Software, but so do iPhone photos.
 # Software Instagram or Layout from Instagram
@@ -895,3 +896,59 @@ def test():
 
     # for key in dateHistogram:
     #     debugPrint(lvl.OK, f"{key}\t -> \t{dateHistogram[key]}")
+
+# Class Experiment
+
+class MediaFile:
+    """
+    A class to represent any media file (video or photo)
+
+    Instance Attributes:
+    --------------------
+    _fileName: Path
+        filename of the media file
+    _date: str
+        The date of creation: string with format YYYY:MM:DD (default: "")
+    _time: str
+        The time of creation: string with format HH:MM:SS (default: "")
+    _isDateless: bool
+        Flag to indicate if the object has no date (default: True)
+    _hasSidecar: bool
+        Flag to indicate if object has sidecar (default: False)
+    _source: str
+        Origin of the file: iPhone, WhatsApp, screenshot, camera... (default: "")
+
+    Methods:
+    --------
+    """
+    def __init__(self, fileName:Path, date: str, time: str, isDateless: bool, source: str):
+        """
+        Attributes:
+        -----------
+        _fileName: Path
+            filename of the media file
+        _date: str
+            The date of creation: string with format YYYY:MM:DD (default: "")
+        _time: str
+            The time of creation: string with format HH:MM:SS (default: "")
+        _isDateless: bool
+            Flag to indicate if the object has no date (default: True)
+        _sidecar: Path
+            If the file has a sidecar, path to it, or empty path if it doesn't have one (default: "")
+        _source: str
+            Origin of the file: iPhone, WhatsApp, screenshot, camera... (default: "")
+        """
+        self_filename: Path = fileName
+        self._date: str = date
+        self._time: str = time
+        self._isDateless: bool = isDateless
+        self._sidecar:bool = hasSidecar(fileName)
+        self._source: str = source
+
+class PhotoFile(MediaFile):
+    def __init__(self, etTagsDict: Dict[str, str]):
+        """
+        Parameters:
+            etTagsDict: Dict[str, str]
+                A dictionary with a collection of tags, provided by ExifTool
+        """
