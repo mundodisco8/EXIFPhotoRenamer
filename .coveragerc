@@ -1,0 +1,14 @@
+[run]
+; Only include files in the src subfolder in the test
+;include=src/**
+; Alternatively, not include the venv files, which are in ~/.pyenv
+omit=
+    */.pyenv/**
+    src/test/**
+branch = True
+
+[report]
+
+[html]
+directory = coverageReport
+

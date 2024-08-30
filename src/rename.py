@@ -144,33 +144,33 @@ if args.photosDir:
 
 
 ############## SCRIPTS ################
-# # Load etJSON.json
-# from json import load
-# etData: List = []
-# with open("etJSON.json", "r") as readFile:
-#     etData = load(readFile)
+# Load etJSON.json
+from json import load
+etData: List = []
+with open("etJSON.json", "r") as readFile:
+    etData = load(readFile)
 
-# # Get all the tags captured - Only once
-# all_keys = set().union(*(dict.keys() for dict in etData))
+# Get all the tags captured - Only once
+all_keys = set().union(*(dict.keys() for dict in etData))
 
-# # Get all the tags captured - All, with repeats
-# all_keys = [item for dict in etData for item in list(dict.keys())]
+# Get all the tags captured - All, with repeats
+all_keys = [item for dict in etData for item in list(dict.keys())]
 
-# # Print n files that have the tagToPrint tag
-# tagToPrint = "PNG:CreateDate"
-# filesToList = 10
-# listFilesTag = [dict['SourceFile'] for dict in etData if tagToPrint in dict.keys()]
-# print('\n'.join(listFilesTag[0:filesToList]))
+# Print n files that have the tagToPrint tag
+tagToPrint = "PNG:CreateDate"
+filesToList = 10
+listFilesTag = [dict['SourceFile'] for dict in etData if tagToPrint in dict.keys()]
+print('\n'.join(listFilesTag[0:filesToList]))
 
-# # Print all the individual values for a certain tag
+# Print all the individual values for a certain tag
 tagToPrint = "EXIF:Make"
 set([dict[tagToPrint] for dict in etData if tagToPrint in dict.keys()])
 
-# # Print all the filenames with a certain value in the tag
-# tagToPrint = "EXIF:Make"
-# tagValue = "Apple"
-# [dict["SourceFile"] for dict in etData if tagToPrint in dict.keys() and tagValue in dict[tagToPrint]]
+# Print all the filenames with a certain value in the tag
+tagToPrint = "EXIF:Make"
+tagValue = "Apple"
+[dict["SourceFile"] for dict in etData if tagToPrint in dict.keys() and tagValue in dict[tagToPrint]]
 
-# # Histogram of tags
-# from collections import Counter
-# dateHistogram = Counter([item for dict in etData for item in list(dict.keys())])
+# Histogram of tags
+from collections import Counter
+dateHistogram = Counter([item for dict in etData for item in list(dict.keys())])
