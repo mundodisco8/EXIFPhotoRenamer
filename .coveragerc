@@ -8,6 +8,7 @@ omit=
 branch = True
 
 [report]
+format = txt
 
 [html]
 directory = coverageReport
