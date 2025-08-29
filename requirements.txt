@@ -4,3 +4,4 @@ alive-progress==3.1.5
 pytest==8.3.2
 pytest-cov==5.0.0
 pytest-mock==3.14.0
+pyside6==6.9.2
