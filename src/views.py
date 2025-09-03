@@ -5,11 +5,17 @@ from json import dump
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtWidgets import QWidget, QFileDialog
+from PySide6.QtWidgets import QWidget, QFileDialog, QDialog, QListWidgetItem
 from PySide6.QtCore import Slot, QProcess, QObject, QRunnable, QThreadPool, Signal
 
 from ui.mainWindow import Ui_MainWindow
-from massRenamer.massRenamerClasses import getFilesInFolder
+from ui.mediaFileViewer import Ui_MediaFileViewer
+from massRenamer.massRenamerClasses import (
+    generateSortedMediaFileList,
+    getFilesInFolder,
+    loadExifToolTagsFromFile,
+    tagsToExtract,
+)
 
 
 class WorkerSignals(QObject):
@@ -106,8 +112,11 @@ class Window(QWidget, Ui_MainWindow):
         self._filesCount = len(self._files)
 
         ### UI stuff
+        self.mediaFileViewer = MediaFileViewer(self)
         self.openFolderBtn.clicked.connect(self.loadFolder)
         self.openJSONBtn.clicked.connect(self.loadJSON)
+        self.mediaFileViewerBtn.clicked.connect(self.showMediaFileViewer)
+        self.toRenameList.itemClicked.connect(self.updateMediaFileViewer)
 
         ### Threading stuff
         self.responderThread: tagReaderWorker | None = None
@@ -166,7 +175,14 @@ class Window(QWidget, Ui_MainWindow):
         self.progressBar.setRange(0, numFiles)
         self.progressBar.setValue(0)
 
-        cmdArgs: list[str] = ["-time:all", "-G1", "-a", "-s", "-j", "-r", self._selDir]
+        # Tags to Extract
+        # The date formatting is super useful, as it's really smart grabbing offsets, I think
+        # -a allow duplicate tags
+        # -s short tag names (no effect with json output but I'll leave it)
+        # -j output json
+        # -r recursive folder search
+        # -d "%Y-%m-%dT%H:%M:%S%:z" output dates in YYYY-MM-DDTHH:MM:SS+/-Offset
+        cmdArgs: list[str] = tagsToExtract + ["-G1", "-a", "-s", "-j", "-r", "-d", "%Y-%m-%dT%H:%M:%S%:z", self._selDir]
 
         self.p = QProcess()
         self.processOutput: str = ""
@@ -209,4 +225,66 @@ class Window(QWidget, Ui_MainWindow):
 
     @Slot()
     def loadJSON(self) -> None:
-        pass
+        self.toRenameList.clear()
+        # If the current directory field has something on it, use it as starting point for looking for a JSON
+        if self.currDirTxt.text():
+            initDir = self.currDirTxt.text()
+        else:
+            # initDir = str(Path.home())  # default to the user's home
+            initDir = r"C:\Users\mundo\OneDrive\Desktop\EXIFPhotoRenamer\FotosTest\A"
+        self._jsonFile, _ = QFileDialog.getOpenFileName(self, "Pick a JSON file with your EXIF tags", initDir, "*.json")
+        self.currJSONTxt.setText(self._jsonFile)
+        # Clear it after the JSON was selected, to avoid ambiguity about what is open
+        self.currDirTxt.clear()
+
+        # Load the JSON
+        tagsDictList = loadExifToolTagsFromFile(Path(self._jsonFile))
+
+        self.mediaFileList = generateSortedMediaFileList(tagsDictList)
+
+        #  3) Store MediaFile list on disk
+        # storeMediaFileList(objectFile, mediaList)
+        # 4) Find Dateless, try to correct them by hand
+        dateless = [instance for instance in self.mediaFileList if instance.dateTime is None]
+
+        if len(dateless) > 0:
+            for item in dateless:
+                self.toRenameList.addItem(str(item.fileName))
+        else:
+            for item in self.mediaFileList:
+                self.toRenameList.addItem(str(item.fileName))
+
+    @Slot()
+    def showMediaFileViewer(self) -> None:
+        """Shows the MediaFile Viewer"""
+        self.mediaFileViewer.show()
+        # Reposition Window to the right of the main window on show.
+        # X coord is MainWindow's x + MainWindow's width (so both windows match side to side)
+        # Y coord is MainWindow's y (so titlebars are aligned in height)
+        self.mediaFileViewer.move(self.geometry().x() + self.width(), self.y())
+
+    @Slot(QListWidgetItem)
+    def updateMediaFileViewer(self, current: QListWidgetItem) -> None:
+        # self.mediaFileViewer.filePathTxt.setText(previous.text())
+        # next((x for x in test_list if x.value == value), None)
+        instance = None
+        for instance in self.mediaFileList:
+            if instance.fileName == Path(current.text()):
+                break
+            else:
+                instance = None
+
+        if instance:
+            self.mediaFileViewer.filePathTxt.setText(str(instance.fileName))
+            self.mediaFileViewer.dateTimeTxt.setText(instance.dateTime)
+            self.mediaFileViewer.sidecarTxt.setText(str(instance.sidecar))
+            self.mediaFileViewer.sourceTxt.setText(instance.source)
+
+
+class MediaFileViewer(QDialog, Ui_MediaFileViewer):
+    def __init__(self, parent: None | QWidget = None):
+        super().__init__(parent)
+        self._setupUI()
+
+    def _setupUI(self):
+        self.setupUi(self)

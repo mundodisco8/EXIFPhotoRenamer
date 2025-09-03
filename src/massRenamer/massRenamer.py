@@ -123,7 +123,7 @@ videoExtensions: List[str] = [".mov", ".mp4", ".m4v"]
 # List of known photo extensions. Add them in lowercase
 photoExtensions: List[str] = [".heic", ".jpg", ".jpeg", ".png", ".gif", ".tif", ".tiff"]
 # List of known "don't process" files
-dontProcessExtensions: List[str] = [".aae", ".ds_store"]
+dontProcessExtensions: List[str] = [".aae", ".ds_store", ".json"]
 
 
 # Misc stuff, helpers, etc

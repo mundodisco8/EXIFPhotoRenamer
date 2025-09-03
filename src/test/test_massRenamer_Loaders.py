@@ -1,6 +1,6 @@
 from pytest import raises
 from unittest.mock import mock_open, patch
-from massRenamer.massRenamerClasses import *
+from src.massRenamer.massRenamerClasses import *
 from pathlib import Path
 
 # For exception checking
@@ -35,6 +35,7 @@ generateSortedMediaFileList()
  and returns an ordered list
 """
 
+
 # ExifTags_TestFile_1.json
 # Test file to test generateSortedMediaFileList(). Contains the tags of a single MediaFile object
 def test_generateSortedMediaFileList_OneObject():
@@ -42,10 +43,13 @@ def test_generateSortedMediaFileList_OneObject():
     with open(FIXTURE_DIR / Path("supportFiles/ExifTags_TestFile_1.json"), "r") as readFile:
         etData = load(readFile)
     mediaFileList = generateSortedMediaFileList(etData)
-    assert mediaFileList[0]._fileName == Path("/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov")
+    assert mediaFileList[0]._fileName == Path(
+        "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov"
+    )
     assert mediaFileList[0]._dateTime == "2018:02:25 09:46:20+00:00"
     assert mediaFileList[0]._sidecar == None
     assert mediaFileList[0]._source == "iPhone 8"
+
 
 # ExifTags_TestFile_2.json
 # Test file to test generateSortedMediaFileList(). Contains the tags of a a bunch of MediaFile objects, and
@@ -56,12 +60,31 @@ def test_generateSortedMediaFileList_ManyOrderedObject():
         etData = load(readFile)
     mediaFileList = generateSortedMediaFileList(etData)
 
-    assert mediaFileList[0].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-01-22 - iPhone 13.mov"
-    assert mediaFileList[1].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov"
-    assert mediaFileList[2].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov"
-    assert mediaFileList[3].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-03-30 - iPhone 13.heic"
-    assert mediaFileList[4].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-12-25 - iPhone 50.mov"
-    assert mediaFileList[5].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2019-02-10 - iPhone 094.mov"
+    assert (
+        mediaFileList[0].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-01-22 - iPhone 13.mov"
+    )
+    assert (
+        mediaFileList[1].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov"
+    )
+    assert (
+        mediaFileList[2].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov"
+    )
+    assert (
+        mediaFileList[3].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-03-30 - iPhone 13.heic"
+    )
+    assert (
+        mediaFileList[4].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-12-25 - iPhone 50.mov"
+    )
+    assert (
+        mediaFileList[5].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2019-02-10 - iPhone 094.mov"
+    )
+
 
 # ExifTags_TestFile_3.json
 # Test file to test generateSortedMediaFileList(). Contains the tags of a a bunch of MediaFile objects, but
@@ -72,12 +95,31 @@ def test_generateSortedMediaFileList_ManyNotOrderedObject():
         etData = load(readFile)
     mediaFileList = generateSortedMediaFileList(etData)
 
-    assert mediaFileList[0].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-01-22 - iPhone 13.mov"
-    assert mediaFileList[1].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov"
-    assert mediaFileList[2].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov"
-    assert mediaFileList[3].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-03-30 - iPhone 13.heic"
-    assert mediaFileList[4].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-12-25 - iPhone 50.mov"
-    assert mediaFileList[5].getFileName().as_posix() == "/media/joel/Backup/Fotos Mac Organizadas/2018/2019-02-10 - iPhone 094.mov"
+    assert (
+        mediaFileList[0].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-01-22 - iPhone 13.mov"
+    )
+    assert (
+        mediaFileList[1].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov"
+    )
+    assert (
+        mediaFileList[2].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov"
+    )
+    assert (
+        mediaFileList[3].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-03-30 - iPhone 13.heic"
+    )
+    assert (
+        mediaFileList[4].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-12-25 - iPhone 50.mov"
+    )
+    assert (
+        mediaFileList[5].getFileName().as_posix()
+        == "/media/joel/Backup/Fotos Mac Organizadas/2018/2019-02-10 - iPhone 094.mov"
+    )
+
 
 def test_generateSortedMediaFileList_filesWithIgnoredExtensions():
     data = """[
@@ -101,6 +143,7 @@ def test_generateSortedMediaFileList_filesWithIgnoredExtensions():
     print(mediaFileList)
     assert len(mediaFileList) == 1
 
+
 """
 loadMediaFileListFromFile
 
@@ -110,12 +153,12 @@ loadMediaFileListFromFile
 - File doesn't exist, throws exception
 """
 
+
 def test_loadMediaFileListFromFile_success():
-
     # Test file is a string with two MediaFile objects
-    testFileData:str = '[MediaFile(fileName=Path("/media/joel/Backup/Fotos Mac Organizadas/2018/2018-01-22 - iPhone 13.mov"), dateTime="2018:01:22 11:44:37+00:00", source="iPhone 8"), MediaFile(fileName=Path("/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov"), dateTime="2018:02:25 09:46:20+00:00", source="iPhone 8")]'
+    testFileData: str = '[MediaFile(fileName=Path("/media/joel/Backup/Fotos Mac Organizadas/2018/2018-01-22 - iPhone 13.mov"), dateTime="2018:01:22 11:44:37+00:00", source="iPhone 8"), MediaFile(fileName=Path("/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov"), dateTime="2018:02:25 09:46:20+00:00", source="iPhone 8")]'
 
-    mock = mock_open(read_data = testFileData)
+    mock = mock_open(read_data=testFileData)
     with patch("builtins.open", mock):
         retVal = loadMediaFileListFromFile(Path("testinput.txt"))
 
@@ -123,25 +166,26 @@ def test_loadMediaFileListFromFile_success():
     assert retVal[0].getFileName() == Path("/media/joel/Backup/Fotos Mac Organizadas/2018/2018-01-22 - iPhone 13.mov")
     assert retVal[1].getTime() == "2018:02:25 09:46:20+00:00"
 
+
 def test_loadMediaFileListFromFile_FileIsListButNotMediaFile():
-
     # Test file is a string with tags to create two MediaFile objects
-    testFileData:str = "[1, 2, 3, 4]"
+    testFileData: str = "[1, 2, 3, 4]"
 
-    mock = mock_open(read_data = testFileData)
+    mock = mock_open(read_data=testFileData)
     with patch("builtins.open", mock):
         with raises(TypeError) as excinfo:
             loadMediaFileListFromFile(Path("testinput.txt"))
 
+
 def test_loadMediaFileListFromFile_FileIsNotEvaluable():
-
     # Test file is a string with tags to create two MediaFile objects
-    testFileData:str = """some Text"""
+    testFileData: str = """some Text"""
 
-    mock = mock_open(read_data = testFileData)
+    mock = mock_open(read_data=testFileData)
     with patch("builtins.open", mock):
         with raises(SyntaxError) as excinfo:
             loadMediaFileListFromFile(Path("testinput.txt"))
+
 
 def test_loadMediaFileListFromFile_FileDoesntExist():
     with raises(FileNotFoundError) as excinfo:
@@ -154,10 +198,12 @@ storeMediaFileList
 - Store a list of MediaFile objects to a file
 """
 
-def test_storeMediaFileList_success():
 
+def test_storeMediaFileList_success():
     # Test file is a string with tags to create two MediaFile objects
-    listMediaFiles: List[MediaFile] =  eval('[MediaFile(fileName=Path("/media/joel/Backup/Fotos Mac Organizadas/2018/2018-01-22 - iPhone 13.mov"), dateTime="2018:01:22 11:44:37+00:00", source="iPhone 8"), MediaFile(fileName=Path("/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov"), dateTime="2018:02:25 09:46:20+00:00", source="iPhone 8")]')
+    listMediaFiles: List[MediaFile] = eval(
+        '[MediaFile(fileName=Path("/media/joel/Backup/Fotos Mac Organizadas/2018/2018-01-22 - iPhone 13.mov"), dateTime="2018:01:22 11:44:37+00:00", source="iPhone 8"), MediaFile(fileName=Path("/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov"), dateTime="2018:02:25 09:46:20+00:00", source="iPhone 8")]'
+    )
 
     mock = mock_open()
     with patch("builtins.open", mock):
@@ -175,10 +221,10 @@ loadExifToolTagsFromFile
 - File doesn't exist, throws exception
 """
 
-def test_loadExifToolTagsFromFile_success():
 
+def test_loadExifToolTagsFromFile_success():
     # Test file is a string with tags to create two MediaFile objects
-    testFileData:str = """[
+    testFileData: str = """[
     {
         "SourceFile": "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov",
         "QuickTime:CreateDate": "2018:02:28 02:25:37",
@@ -196,7 +242,7 @@ def test_loadExifToolTagsFromFile_success():
         "File:FileModifyDate": "2024:03:08 10:13:20+00:00"
     }]"""
 
-    mock = mock_open(read_data = testFileData)
+    mock = mock_open(read_data=testFileData)
     with patch("builtins.open", mock):
         retVal = loadExifToolTagsFromFile(Path("testinput.json"))
 
@@ -204,19 +250,21 @@ def test_loadExifToolTagsFromFile_success():
     assert retVal[0]["SourceFile"] == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov"
     assert retVal[1]["QuickTime:Model"] == "iPhone 8"
 
+
 def test_loadExifToolTagsFromFile_FileIsNotJSON():
-
     # Test file is a string with tags to create two MediaFile objects
-    testFileData:str = """some Text"""
+    testFileData: str = """some Text"""
 
-    mock = mock_open(read_data = testFileData)
+    mock = mock_open(read_data=testFileData)
     with patch("builtins.open", mock):
         with raises(JSONDecodeError) as excinfo:
             loadExifToolTagsFromFile(Path("testinput.json"))
 
+
 def test_loadExifToolTagsFromFile_FileDoesntExist():
     with raises(FileNotFoundError) as excinfo:
         loadExifToolTagsFromFile(Path("FileThatDoesn'tExists.json"))
+
 
 """
 storeExifToolTagsFromFile
@@ -224,26 +272,27 @@ storeExifToolTagsFromFile
 - Store some ExifTool tags, given as a list of dictionaries, in a file
 """
 
-def test_storeExifToolTags_success():
 
+def test_storeExifToolTags_success():
     # Test file is a string with tags to create two MediaFile objects
     tagsToWrite: List[Dict[str, str]] = [
-    {
-        "SourceFile": "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov",
-        "QuickTime:CreateDate": "2018:02:28 02:25:37",
-        "QuickTime:Make": "Apple",
-        "QuickTime:Model": "iPhone 8",
-        "QuickTime:Software": "11.2.5",
-        "File:FileModifyDate": "2018:02:28 02:25:37+00:00"
-    },
-    {
-        "SourceFile": "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-01-22 - iPhone 13.mov",
-        "QuickTime:CreateDate": "2018:01:22 11:44:37",
-        "QuickTime:Make": "Apple",
-        "QuickTime:Model": "iPhone 8",
-        "QuickTime:Software": "11.2.2",
-        "File:FileModifyDate": "2024:03:08 10:13:20+00:00"
-    }]
+        {
+            "SourceFile": "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov",
+            "QuickTime:CreateDate": "2018:02:28 02:25:37",
+            "QuickTime:Make": "Apple",
+            "QuickTime:Model": "iPhone 8",
+            "QuickTime:Software": "11.2.5",
+            "File:FileModifyDate": "2018:02:28 02:25:37+00:00",
+        },
+        {
+            "SourceFile": "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-01-22 - iPhone 13.mov",
+            "QuickTime:CreateDate": "2018:01:22 11:44:37",
+            "QuickTime:Make": "Apple",
+            "QuickTime:Model": "iPhone 8",
+            "QuickTime:Software": "11.2.2",
+            "File:FileModifyDate": "2024:03:08 10:13:20+00:00",
+        },
+    ]
 
     mock = mock_open()
     with patch("builtins.open", mock):
@@ -251,4 +300,3 @@ def test_storeExifToolTags_success():
 
     mock.assert_called_once_with(Path("testoutput.json"), "w")
     mock().write.assert_called_once_with(str(tagsToWrite))
-

@@ -1,4 +1,4 @@
-from massRenamer.massRenamerClasses import *
+from src.massRenamer.massRenamerClasses import *
 
 """
 MediaFile.fromExifTags Class test:
@@ -6,8 +6,14 @@ MediaFile.fromExifTags Class test:
 - repr method prints the data in the correct format (so we can init more instances of the MediaFile class out of it)
 """
 
+
 def test_MediaFile_Creation():
-    exifData = {"SourceFile": "fakeFile.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8", "EXIF:CreateDate": "1234:12:12 11:22:33"}
+    exifData = {
+        "SourceFile": "fakeFile.jpg",
+        "EXIF:Make": "Apple",
+        "EXIF:Model": "iPhone 8",
+        "EXIF:CreateDate": "1234:12:12 11:22:33",
+    }
     testInstance = MediaFile.fromExifTags(exifData)
     assert isinstance(testInstance, MediaFile)
     assert testInstance._fileName == Path("fakeFile.jpg")
@@ -15,8 +21,14 @@ def test_MediaFile_Creation():
     assert testInstance._sidecar == None
     assert testInstance._source == "iPhone 8"
 
+
 def test_MediaFile_repr():
-    exifData = {"SourceFile": "fakeFile.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8", "EXIF:CreateDate": "1234:12:12 11:22:33"}
+    exifData = {
+        "SourceFile": "fakeFile.jpg",
+        "EXIF:Make": "Apple",
+        "EXIF:Model": "iPhone 8",
+        "EXIF:CreateDate": "1234:12:12 11:22:33",
+    }
     sourceInstance = MediaFile.fromExifTags(exifData)
     testInstance = eval(sourceInstance.__repr__())
     assert isinstance(testInstance, type(sourceInstance))
@@ -24,6 +36,7 @@ def test_MediaFile_repr():
     assert testInstance._dateTime == sourceInstance._dateTime
     assert testInstance._sidecar == sourceInstance._sidecar
     assert testInstance._source == sourceInstance._source
+
 
 def test_mediaFile_setTime_Success():
     mediaFile = MediaFile(Path("fakeFile.jpg"), None, "WhatsApp")
@@ -36,6 +49,7 @@ def test_mediaFile_setTime_Success():
     newTime = "1234:12:12 00:00:00Z"
     mediaFile.setTime(newTime)
     assert mediaFile.getTime() == "1234:12:12 00:00:00+00:00"
+
 
 def test_mediaFile_setTime_BadTime():
     mediaFile = MediaFile(Path("fakeFile.jpg"), None, "WhatsApp")

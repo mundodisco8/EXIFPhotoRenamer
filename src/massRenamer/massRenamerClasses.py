@@ -40,43 +40,25 @@ Functions:
 """
 
 from datetime import datetime, timedelta
-from subprocess import Popen, PIPE, run
+from subprocess import PIPE, run
 from json import load, JSONDecodeError
 from pathlib import Path
-from re import compile, search
+from re import compile, search, match
 from typing import Dict, List
 from enum import IntEnum
 from logging import getLogger
 
 from exiftool import ExifToolHelper
+from tzfpy import get_tz
+from whenever import OffsetDateTime, PlainDateTime, TimeDelta, ZonedDateTime
 
 module_logger = getLogger(__name__)
 
-# Format strings for partsing datetimes in aware and naive formats (with and without UTC
-# offset). Annoyingly, to parse a datetime to string and have a semicolon in the offset,
-# you use the %:z token, but that token doesn't work when parsing strings to datetime!
-offsetAwareFormatParsing = "%Y:%m:%d %H:%M:%S%z"
-offsetAwareFormatStringing = "%Y:%m:%d %H:%M:%S%:z"
-offsetNaiveFormat = "%Y:%m:%d %H:%M:%S"
 
 # # TODO: Software source: Apps leave a tag in Software, but so do iPhone photos.
 # # Software Instagram or Layout from Instagram
 # # Software Adobe Photoshop
 # # ...
-
-# # A definition of the dictionary which is used as value for our JSON, containing the
-# # metadata for each file to be processed later.
-
-
-# class metadataDict(TypedDict):
-#     date: str        # date in format YYYY-MM-DD
-#     time: str        # time in format HH:MM:SS
-#     hasSidecar: bool  # indicates if this file has a sidecar
-#     dateless: bool   # indicates that this file didn't have a good exif tag for date of creation
-#     screenshot: bool  # Indicates that the file is a screenshot
-#     # indicates if the file comes from a "camera" or from an app (Whatsapp, etc...)
-#     hasManufacturer: bool
-
 
 # # Filename for the JSON file to use
 # jsonFileName: str = "data_file_sorted.json"
@@ -88,22 +70,20 @@ objectFile: Path = Path("MediaFileList.txt")
 # emptyDate: str = "0000:00:00 00:00:00"
 
 # # The List of tags to extract with exiftool
-# # HACK: sometimes, the filemodifydate tag can help, but it can also be quite harmful, so
-# # by default I won't add it to the list of tags
-# tagsToExtract: List[str] = ["-UserComment", "-CreateDate", "-DateTimeOriginal",
-#                             "-MediaCreareDate", "-Make", "-Model", "-Software", "-filemodifydate"]
+tagsToExtract: List[str] = ["-time:all", "-UserComment", "-Make", "-Model", "-Software", "-GPS:all"]
 
 
-# ####
-# ##
-# # Compiled Regexes
-# ##
+####
+##
+# Compiled Regexes
+##
+
+# GPS coordinates
+GPSCoordsRegEx = compile(r"([0-9]+) deg ([0-9]+)' ([0-9.]+)\"")
+
 
 # # To check for time offsets: +/-HH:MM
 # offsetRegEx = compile(r'[\+\-][0-9]{2}\:[0-9]{2}')
-
-# Searches for "YYYY:MM:DD HH:MM:SS" with an optional "[+/-]XX:XX" or "Z"
-dateTimeRegEx = compile(r"(\d{4}\:\d{2}\:\d{2}\s\d{2}\:\d{2}\:\d{2}([\+\-]\d{2}\:\d{2}|[Z])?)")
 
 # # List of known video extensions. Add them in lowercase
 # videoExtensions: List[str] = [".mov", ".mp4", ".m4v"]
@@ -111,17 +91,11 @@ dateTimeRegEx = compile(r"(\d{4}\:\d{2}\:\d{2}\s\d{2}\:\d{2}\:\d{2}([\+\-]\d{2}\
 # photoExtensions: List[str] = [".heic", ".jpg",
 #                               ".jpeg", ".png", ".gif", ".tif", ".tiff"]
 # List of known "don't process" files
-dontProcessExtensions: List[str] = [".aae", ".ds_store"]
+dontProcessExtensions: List[str] = [".aae", ".ds_store", ".json"]
 
 ####
 # Misc stuff, helpers, etc
 ####
-
-
-class TZ_AWARENESS(IntEnum):
-    NAIVE = 1
-    AWARE = 2
-    Z_AWARE = 3  # Date is TZ Aware, but uses Z suffix
 
 
 # def getListOfFiles(path: Path) -> List[Path]:
@@ -203,78 +177,33 @@ class TZ_AWARENESS(IntEnum):
 # Creation date finder - findCreationTime
 ####
 
-
-# NOTE: Tested
-def getTZAwareness(dateTimeStr: str) -> TZ_AWARENESS | None:
-    # If time is timezone-naive, add UTC offset
-    appendOffsetFlag: bool = True
-    try:
-        datetime.strptime(dateTimeStr, offsetNaiveFormat)
-        return TZ_AWARENESS.NAIVE
-    except ValueError:
-        # not Naive, try aware
-        try:
-            datetime.strptime(dateTimeStr, offsetAwareFormatParsing)
-            if dateTimeStr[-1] == "Z":
-                return TZ_AWARENESS.Z_AWARE
-            else:
-                return TZ_AWARENESS.AWARE
-        except ValueError:
-            # Is this a date string?
-            return None
-
-
-# NOTE: Tested
-def getTimeOffset(exifToolData: Dict[str, str], exifTag: str):
-    """
-    Adds time offset to strings containing "naive" dateTime objects. If the dictionary
-    doesn't have offset info, the date is assumed to be UTC ("+00:00").
-    Eg: adds "+00:00" to "YYYY:MM:DD HH:MM:SS" if the timezone was UTC
-
-    Args:
-        exifToolData: a dict containing a collection of EXIF tags
-        exifTag: the key of the dictionary containing the date in string format
-
-    Returns:
-        a string containing a date with time offset.
-    """
-    dateString_: str = exifToolData[exifTag]
-
-    # Check if object is naive
-    try:
-        datetime.strptime(dateString_, offsetNaiveFormat)
-    except ValueError:
-        print(f"String does not contain a date in the correct format -> '{dateString_}'")
-        raise ValueError
-    # try to get offset from tags
-    offset_: str = "+00:00"
-    if exifTag == "EXIF:CreateDate":
-        if "EXIF:OffsetTimeDigitized" in exifToolData.keys():
-            offset_ = exifToolData["EXIF:OffsetTimeDigitized"]
-    elif exifTag == "EXIF:DateTimeOriginal":
-        if "EXIF:OffsetTimeOriginal" in exifToolData.keys():
-            offset_ = exifToolData["EXIF:OffsetTimeOriginal"]
-    # Otherwise, no tags associated, offset is still +00:00
-    # Special case, sometimes offset is Z, for Zulu -> UTC
-    if offset_ == "Z":
-        offset_ = "+00:00"
-    return dateString_ + offset_
-
-
 # These are the tags that I'm capturing with EXIFTool about creation time
 dateTagsToCheck: List[str] = [
-    "EXIF:DateTimeOriginal",
+    "ExifIFD:DateTimeOriginal",
     "QuickTime:DateTimeOriginal",
     "XMP:DateTimeOriginal",
-    "EXIF:CreateDate",
+    "ExifIFD:CreateDate",
     "QuickTime:CreateDate",
     "PNG:CreateDate",
     "XMP:CreateDate",
     "QuickTime: CreationDate",
+    "XMP-photoshop:DateCreated",  # in some iPhone pngs...
 ]
-# NOTE: Keeping this one for later, and thinking about capturing Track* in videos: is there a video that has no
-# CreateDate but has track? unlikely
-videoTagsToCheck: List[str] = ["File:FileModifyDate"]
+
+# This dict contains the correct offset tag for each time tag
+offsetDict: dict[str, str] = {
+    "ExifIFD:DateTimeOriginal": "ExifIFD:OffsetTimeOriginal",
+    "ExifIFD:CreateDate": "ExifIFD:OffsetTimeDigitized",
+    "ExifIFD:ModifyDate": "ExifIFD:OffsetTime",
+}
+
+# List of GPS tags to grab metadata from
+GPSTagsList: List[str] = [
+    "GPSLatitudeRef",
+    "GPSLatitude",
+    "GPSLongitudeRef",
+    "GPSLongitude",
+]
 
 
 # NOTE: Tested
@@ -290,7 +219,6 @@ def findCreationTime(exifToolData: Dict[str, str]) -> str | None:
         CreateDate: should be the same as DateTimeOriginal. Could be different if you are "scanning" a paper photo,
         where CreateDate is the date of the Scan, and DateTimeOriginal should be the date the photo was taken.
 
-
     Args:
         exifToolData: a dict with the metadata to extract, as provided by
             ExifTool
@@ -302,48 +230,89 @@ def findCreationTime(exifToolData: Dict[str, str]) -> str | None:
         string if there is no valid date tags in the dictionary.
     """
 
-    datesFound: List[datetime] = []
-    # Gather all the date data from the tags we are interested in checking
-    for tag in dateTagsToCheck:
-        # if tag exists, grab store value in datesFound
-        if tag in exifToolData:
-            dateString_: str = exifToolData[tag]
-            # We either have a datetime object that is aware, or we have a naive with an
-            # offset. Turn back into string and store
-            try:
-                datetime.strptime(dateString_, offsetNaiveFormat)
-                # if dateString is "naive" see if we can get the offset
-                dateString_ = getTimeOffset(exifToolData, tag)
-            except:
-                pass
-            # Else, the dateString is "aware"
-            # Store the date as datetime object, so we can sort it later
-            datesFound.append(datetime.strptime(dateString_, offsetAwareFormatParsing))
+    # We are asking EXIFTool to return the dates in `YYYY-MM-DDThh:mm:ss⨦oo:00` format. If the tag has offset info,
+    # then obviously the offset is correct, but sometimes it returns +00:00 and then you have to check the presence of
+    # offset tags.
+    # From ExifTool (https://exiftool.org/TagNames/EXIF.html)
+    #
+    # 0x9003    DateTimeOriginal        string  ExifIFD     (date/time when original image was taken)
+    # 0x9004    CreateDate              string  ExifIFD     (called DateTimeDigitized by the EXIF spec.)
+    # 0x9010    OffsetTime              string  ExifIFD     (time zone for ModifyDate)
+    # 0x9011    OffsetTimeOriginal      string  ExifIFD     (time zone for DateTimeOriginal)
+    # 0x9012    OffsetTimeDigitized     string  ExifIFD     (time zone for CreateDate)
 
-    if datesFound:
-        datesFound = sorted(datesFound)
-        # Pick the first element of the sorted array (sorted from oldest to newest) to get
-        # the oldest date
-        oldestDate_ = datesFound[0]
-        # But there might be a couple of dates that are the "same", with and without offset
-        # The sorting algo favours UTC over dates with offset, so that means that we can
-        # potentially loose it on those scenarios. Loop the array for other dates equivalent
-        # the picked one, but with an offset
-        for date in datesFound:
-            if date == oldestDate_:
-                # if dates are still the same, prefer the one with the delta
-                if date.utcoffset() != timedelta(0):
-                    oldestDate_ = date
-                    # and stop searching. If there are more equivalent dates with other
-                    # deltas... well that's a mess anyway. Let's stop this madness here.
-                    break
+    # Loop through the dateTagsToCheck tags. They are sorted by preference. As soon as we have one, we can take that one
+    # as the date and break
+    date: ZonedDateTime | OffsetDateTime | PlainDateTime | None = None
+    for tag in dateTagsToCheck:
+        if tag in exifToolData:
+            try:
+                date = OffsetDateTime.parse_common_iso(exifToolData[tag])
+            except ValueError:
+                date = PlainDateTime.parse_common_iso(exifToolData[tag]).assume_fixed_offset(0)
+
+            # At this point, we have a date with an offset, or the date didn't have offset and we assumed UTC.
+            # Nevertheless, if there are GPS tags, we can get the timezone from it (more precise) or there might be
+            # offset tags to check too. We'll give preference to the GPS as it's absolute (the offset tag requires
+            # having set the time and date correctly, obviously)
+            if (
+                "GPS:GPSLatitudeRef" in exifToolData.keys()
+                and "GPS:GPSLatitude" in exifToolData.keys()
+                and "GPS:GPSLongitudeRef" in exifToolData.keys()
+                and "GPS:GPSLongitude" in exifToolData.keys()
+            ):
+                # Latitude and longitude follow the "GGG deg MM' SS.00"" format, we have a regexp to capture the numbers
+                longMatch = match(GPSCoordsRegEx, exifToolData["GPS:GPSLongitude"])
+                latMatch = match(GPSCoordsRegEx, exifToolData["GPS:GPSLatitude"])
+                longitude: float | None = None
+                latitude: float | None = None
+                if longMatch:
+                    # Got degrees, minutes and seconds in match groups 1, 2 and 3
+                    longitude = (
+                        int(longMatch.group(1)) + (int(longMatch.group(2)) / 60) + (float(longMatch.group(3)) / 3600)
+                    )
+                    if exifToolData["GPS:GPSLongitudeRef"] == "West":
+                        # If coordinates are South, then they are negative
+                        longitude *= -1
+                if latMatch:
+                    latitude = (
+                        int(latMatch.group(1)) + (int(latMatch.group(2)) / 60) + (float(latMatch.group(3)) / 3600)
+                    )
+                    if exifToolData["GPS:GPSLatitudeRef"] == "South":
+                        # If coordinates are West, then they are negative
+                        latitude *= -1
+
+                if longitude and latitude:
+                    myTZ = get_tz(longitude, latitude)
+                    # Type dance: convert to plain (to get rid of whatever offset it had), assume it belongs to tz, so
+                    # we have a time with the same "value" but on a different tz, and then to fixed offset (as we
+                    # can't store the timezone string in the tags)
+                    date = date.to_tz(myTZ).to_fixed_offset()
             else:
-                # if dates are different, we can stop searching
-                break
-        return oldestDate_.strftime("%Y:%m:%d %H:%M:%S%:z")
-    # Else, no dates were found, return None, this element is "dateless", we will
-    # have to rely in file system data (unreliable) or infer by name, based on neighboring
-    # dated elements.
+                # No GPS location, try offsets
+                if tag in offsetDict.keys() and offsetDict[tag] in exifToolData.keys():
+                    offsetStr = exifToolData[offsetDict[tag]]
+                    if len(offsetStr) != 6:
+                        # Offset has to be ±HH:MM
+                        raise ValueError(f"Offset ({offsetStr}) is the wrong length")
+                    offsetSign = offsetStr[0]  # + or -
+                    offsetHours = offsetStr[1:3]  # HH
+                    offsetMin = offsetStr[4:]  # skip : and get MM
+
+                    # "Delete" the current offset by considering the date a plain date, and then create a new fixed offset
+                    # By passing the offset as a "TimeDelta" we can pass "fractional" offsets (01:30). To get a negative
+                    # offset, we have to pass "negative" hours and "negative" minutes (otherwise they cancel each other
+                    # out: -2h and +30 minutes is -01:30)
+                    offsetTimeDelta = TimeDelta(
+                        hours=int(offsetSign + offsetHours), minutes=int(offsetSign + offsetMin)
+                    )
+                    # Type dance: convert to plain (to get rid of whatever offset it had), assume it has a certain fixed
+                    # offset, so we have a time with the same "value" but on a different offset.
+                    date = date.to_plain().assume_fixed_offset(offsetTimeDelta)
+            break
+
+    if date:
+        return date.format_common_iso()
     return None
 
 
@@ -758,30 +727,27 @@ class MediaFile:
 
     # Use slots, instead of a dict, for the attributes. This makes the attribs static,
     # but require less memory per object and has faster access
-    __slots__ = "_fileName", "_dateTime", "_source", "_sidecar"
+    __slots__ = "fileName", "dateTime", "source", "sidecar"
 
     # NOTE: Tested
     def __init__(self, fileName: Path, dateTime: str | None, source: str):
         """
         Attributes:
         -----------
-        _fileName: Path
+        fileName: Path
             filename of the media file
-        _dateTime: str
-            The date and time of creation: string with format 'YYYY:MM:DD hh:mm:ss', or
-            None if it has not been determined yet..
-        _source: str
+        dateTime: str
+            The date and time of creation: string with format 'YYYY-MM-DDThh:mm:ss±OO:OO', or
+            None if it has not been determined yet.
+        source: str
             Origin of the file: iPhone, WhatsApp, screenshot, camera... (default: "")
         """
-        self._fileName: Path = fileName
+        self.fileName: Path = fileName
 
-        if dateTime:
-            self.setTime(dateTime)
-        else:
-            self._dateTime = None
+        self.dateTime: str | None = dateTime
 
-        self._sidecar: Path | None = getSidecar(fileName)
-        self._source: str = source
+        self.sidecar: Path | None = getSidecar(fileName)
+        self.source: str = source
 
     @classmethod
     def fromExifTags(cls, etTagsDict: Dict[str, str]):
@@ -793,7 +759,8 @@ class MediaFile:
             raise
         # Try to find a date of creation, if available in the passed tags
         dateTime_: str | None = findCreationTime(etTagsDict)
-        # Find the source
+        #
+        #  Find the source
         try:
             source_: str = getFileSource(etTagsDict)
         except KeyError:
@@ -810,29 +777,10 @@ class MediaFile:
         """
         return (
             f"{type(self).__name__}"
-            f'(fileName=Path("{self._fileName}"), '
-            f'dateTime="{self._dateTime}", '
-            f'source="{self._source}")'
+            f'(fileName=Path("{self.fileName}"), '
+            f'dateTime="{self.dateTime}", '
+            f'source="{self.source}")'
         )
-
-    def getTime(self):
-        return self._dateTime
-
-    # NOTE: Tested
-    def setTime(self, newTime: str) -> None:
-        # Validate time
-        if not dateTimeRegEx.match(newTime):
-            module_logger.error(f"Invalid date string, '{newTime}', try again")
-            return
-        # Get awareness of date
-        if getTZAwareness(newTime) == TZ_AWARENESS.NAIVE:
-            newTime += "+00:00"
-        # If offset is Z, replace it with a "+00:00", it does nothing if it's not
-        newTime = newTime.replace("Z", "+00:00")
-        self._dateTime = newTime
-
-    def getFileName(self):
-        return self._fileName
 
 
 ###
@@ -969,7 +917,7 @@ def generateSortedMediaFileList(etData: List[Dict[str, str]]) -> List[MediaFile]
     mediaFileList: List[MediaFile] = []
 
     for entry in etData:
-        # The batch processor of ExifTool processes all files in folder, so remove
+        # The batch processor of ExifTool processes some files that are not images, so remove
         # known bad extensions. Get the filename and check its extension
         fileName: Path = Path(entry["SourceFile"])
         # We have to check 'suffix' for files with name.extension ('example.aae'), and name for files with name starting with . ('.ds_store')
@@ -980,7 +928,7 @@ def generateSortedMediaFileList(etData: List[Dict[str, str]]) -> List[MediaFile]
 
     # Sorts the list based on the filename. This will help to infer dates based on
     # "neighbours" with date.
-    mediaFileList = sorted(mediaFileList, key=lambda x: x.getFileName())
+    mediaFileList = sorted(mediaFileList, key=lambda x: x.fileName)
     return mediaFileList
 
 
@@ -1132,7 +1080,7 @@ def generateMediaFileList(EXIFTagFile: Path) -> None:
     # 3) Store MediaFile list on disk
     storeMediaFileList(objectFile, mediaList)
     # 4) Find Dateless, try to correct them by hand
-    dateless = [instance for instance in mediaList if instance.getTime() == None]
+    dateless = [instance for instance in mediaList if instance.dateTime is None]
     print(dateless)
     print(f"Found {len(dateless)} {'instance' if (len(dateless) == 1) else 'instances'} without date")
     for item in dateless:
@@ -1140,7 +1088,7 @@ def generateMediaFileList(EXIFTagFile: Path) -> None:
         idx = mediaList.index(item)
         newDate = fixDateInteractive(idx, mediaList)
         if newDate:
-            mediaList[idx].setTime(newDate)
+            mediaList[idx].dateTime = newDate
 
     storeMediaFileList(objectFile, mediaList)
 

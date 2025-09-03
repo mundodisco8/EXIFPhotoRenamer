@@ -1,6 +1,7 @@
 from pytest import MonkeyPatch
-from massRenamer.massRenamerClasses import getSidecar
 from pathlib import Path
+
+from src.massRenamer.massRenamerClasses import getSidecar
 
 """
 getSidecar
@@ -10,8 +11,11 @@ getSidecar
 - File doesn't have a sidecar
 
 """
+
+
 def test_getSidecar_sidecarSameName():
     monkeypatch = MonkeyPatch()
+
     def mocked_is_file(self):
         if self.name == "sidecarExists.aae":
             return True
@@ -23,8 +27,10 @@ def test_getSidecar_sidecarSameName():
     testPathExists = Path("sidecarExists.jpg")
     assert getSidecar(testPathExists) == Path("sidecarExists.aae")
 
+
 def test_getSidecar_sidecarWithOSuffix():
     monkeypatch = MonkeyPatch()
+
     def mocked_is_file(self):
         if self.name == "sidecarExistsO.aae":
             return True
@@ -36,10 +42,12 @@ def test_getSidecar_sidecarWithOSuffix():
     testPathExists = Path("sidecarExists.jpg")
     assert getSidecar(testPathExists) == Path("sidecarExistsO.aae")
 
+
 def test_getSidecar_sidecarDoesntExist():
     monkeypatch = MonkeyPatch()
+
     def mocked_is_file(self):
-            return False
+        return False
 
     monkeypatch.setattr(Path, "is_file", mocked_is_file)
 

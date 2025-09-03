@@ -27,10 +27,10 @@ class Ui_MainWindow(object):
         MainWindow.resize(1600, 1200)
         self.pushButton_2 = QPushButton(MainWindow)
         self.pushButton_2.setObjectName(u"pushButton_2")
-        self.pushButton_2.setGeometry(QRect(1420, 1010, 93, 29))
-        self.pushButton_3 = QPushButton(MainWindow)
-        self.pushButton_3.setObjectName(u"pushButton_3")
-        self.pushButton_3.setGeometry(QRect(1420, 1060, 93, 29))
+        self.pushButton_2.setGeometry(QRect(1310, 1060, 93, 29))
+        self.mediaFileViewerBtn = QPushButton(MainWindow)
+        self.mediaFileViewerBtn.setObjectName(u"mediaFileViewerBtn")
+        self.mediaFileViewerBtn.setGeometry(QRect(1382, 110, 131, 29))
         self.layoutWidget = QWidget(MainWindow)
         self.layoutWidget.setObjectName(u"layoutWidget")
         self.layoutWidget.setGeometry(QRect(62, 152, 1452, 872))
@@ -126,18 +126,18 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout.addItem(self.horizontalSpacer)
 
-        self.widget = QWidget(MainWindow)
-        self.widget.setObjectName(u"widget")
-        self.widget.setGeometry(QRect(80, 1090, 1431, 61))
-        self.verticalLayout = QVBoxLayout(self.widget)
+        self.layoutWidget1 = QWidget(MainWindow)
+        self.layoutWidget1.setObjectName(u"layoutWidget1")
+        self.layoutWidget1.setGeometry(QRect(80, 1090, 1431, 61))
+        self.verticalLayout = QVBoxLayout(self.layoutWidget1)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
-        self.progressBarTxt = QLabel(self.widget)
+        self.progressBarTxt = QLabel(self.layoutWidget1)
         self.progressBarTxt.setObjectName(u"progressBarTxt")
 
         self.verticalLayout.addWidget(self.progressBarTxt)
 
-        self.progressBar = QProgressBar(self.widget)
+        self.progressBar = QProgressBar(self.layoutWidget1)
         self.progressBar.setObjectName(u"progressBar")
         self.progressBar.setStyleSheet(u"QProgressBar {\n"
 "    border: 2px solid grey;\n"
@@ -167,7 +167,7 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"EXIF Renamer", None))
         self.pushButton_2.setText(QCoreApplication.translate("MainWindow", u"Rename", None))
-        self.pushButton_3.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
+        self.mediaFileViewerBtn.setText(QCoreApplication.translate("MainWindow", u"MediaFile Viewer", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Files To Rename", None))
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"Name Preview", None))
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"Load a JSON", None))
