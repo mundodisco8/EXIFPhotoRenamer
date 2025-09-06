@@ -15,28 +15,32 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QDialog, QGridLayout, QHBoxLayout,
-    QLabel, QLayout, QLineEdit, QSizePolicy,
+from PySide6.QtWidgets import (QApplication, QDialog, QGridLayout, QLabel,
+    QLayout, QLineEdit, QSizePolicy, QVBoxLayout,
     QWidget)
 
 class Ui_MediaFileViewer(object):
     def setupUi(self, MediaFileViewer):
         if not MediaFileViewer.objectName():
             MediaFileViewer.setObjectName(u"MediaFileViewer")
-        MediaFileViewer.resize(529, 180)
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        MediaFileViewer.resize(511, 660)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(MediaFileViewer.sizePolicy().hasHeightForWidth())
         MediaFileViewer.setSizePolicy(sizePolicy)
-        MediaFileViewer.setMaximumSize(QSize(16777215, 180))
+        MediaFileViewer.setMaximumSize(QSize(16777215, 660))
         MediaFileViewer.setSizeIncrement(QSize(1, 0))
-        self.horizontalLayout = QHBoxLayout(MediaFileViewer)
-        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.widget = QWidget(MediaFileViewer)
+        self.widget.setObjectName(u"widget")
+        self.widget.setGeometry(QRect(11, 11, 486, 636))
+        self.verticalLayout = QVBoxLayout(self.widget)
+        self.verticalLayout.setObjectName(u"verticalLayout")
+        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.gridLayout = QGridLayout()
         self.gridLayout.setObjectName(u"gridLayout")
-        self.gridLayout.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
-        self.filePathLbl = QLabel(MediaFileViewer)
+        self.gridLayout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+        self.filePathLbl = QLabel(self.widget)
         self.filePathLbl.setObjectName(u"filePathLbl")
         font = QFont()
         font.setBold(True)
@@ -44,7 +48,7 @@ class Ui_MediaFileViewer(object):
 
         self.gridLayout.addWidget(self.filePathLbl, 0, 0, 1, 1)
 
-        self.filePathTxt = QLineEdit(MediaFileViewer)
+        self.filePathTxt = QLineEdit(self.widget)
         self.filePathTxt.setObjectName(u"filePathTxt")
         sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         sizePolicy1.setHorizontalStretch(1)
@@ -56,13 +60,13 @@ class Ui_MediaFileViewer(object):
 
         self.gridLayout.addWidget(self.filePathTxt, 0, 1, 1, 1)
 
-        self.dateTimeLbl = QLabel(MediaFileViewer)
+        self.dateTimeLbl = QLabel(self.widget)
         self.dateTimeLbl.setObjectName(u"dateTimeLbl")
         self.dateTimeLbl.setFont(font)
 
         self.gridLayout.addWidget(self.dateTimeLbl, 1, 0, 1, 1)
 
-        self.dateTimeTxt = QLineEdit(MediaFileViewer)
+        self.dateTimeTxt = QLineEdit(self.widget)
         self.dateTimeTxt.setObjectName(u"dateTimeTxt")
         sizePolicy1.setHeightForWidth(self.dateTimeTxt.sizePolicy().hasHeightForWidth())
         self.dateTimeTxt.setSizePolicy(sizePolicy1)
@@ -71,13 +75,13 @@ class Ui_MediaFileViewer(object):
 
         self.gridLayout.addWidget(self.dateTimeTxt, 1, 1, 1, 1)
 
-        self.sidecarLbl = QLabel(MediaFileViewer)
+        self.sidecarLbl = QLabel(self.widget)
         self.sidecarLbl.setObjectName(u"sidecarLbl")
         self.sidecarLbl.setFont(font)
 
         self.gridLayout.addWidget(self.sidecarLbl, 2, 0, 1, 1)
 
-        self.sidecarTxt = QLineEdit(MediaFileViewer)
+        self.sidecarTxt = QLineEdit(self.widget)
         self.sidecarTxt.setObjectName(u"sidecarTxt")
         sizePolicy1.setHeightForWidth(self.sidecarTxt.sizePolicy().hasHeightForWidth())
         self.sidecarTxt.setSizePolicy(sizePolicy1)
@@ -86,13 +90,13 @@ class Ui_MediaFileViewer(object):
 
         self.gridLayout.addWidget(self.sidecarTxt, 2, 1, 1, 1)
 
-        self.sourceLbl = QLabel(MediaFileViewer)
+        self.sourceLbl = QLabel(self.widget)
         self.sourceLbl.setObjectName(u"sourceLbl")
         self.sourceLbl.setFont(font)
 
         self.gridLayout.addWidget(self.sourceLbl, 3, 0, 1, 1)
 
-        self.sourceTxt = QLineEdit(MediaFileViewer)
+        self.sourceTxt = QLineEdit(self.widget)
         self.sourceTxt.setObjectName(u"sourceTxt")
         sizePolicy1.setHeightForWidth(self.sourceTxt.sizePolicy().hasHeightForWidth())
         self.sourceTxt.setSizePolicy(sizePolicy1)
@@ -101,9 +105,14 @@ class Ui_MediaFileViewer(object):
 
         self.gridLayout.addWidget(self.sourceTxt, 3, 1, 1, 1)
 
-        self.gridLayout.setColumnStretch(1, 1)
 
-        self.horizontalLayout.addLayout(self.gridLayout)
+        self.verticalLayout.addLayout(self.gridLayout)
+
+        self.imageLbl = QLabel(self.widget)
+        self.imageLbl.setObjectName(u"imageLbl")
+        self.imageLbl.setMinimumSize(QSize(0, 500))
+
+        self.verticalLayout.addWidget(self.imageLbl)
 
 
         self.retranslateUi(MediaFileViewer)
@@ -119,5 +128,6 @@ class Ui_MediaFileViewer(object):
         self.sidecarTxt.setText("")
         self.sourceLbl.setText(QCoreApplication.translate("MediaFileViewer", u"Source", None))
         self.sourceTxt.setText("")
+        self.imageLbl.setText(QCoreApplication.translate("MediaFileViewer", u"TextLabel", None))
     # retranslateUi
 

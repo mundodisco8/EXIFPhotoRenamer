@@ -6,12 +6,12 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>529</width>
-    <height>180</height>
+    <width>511</width>
+    <height>660</height>
    </rect>
   </property>
   <property name="sizePolicy">
-   <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+   <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
@@ -19,7 +19,7 @@
   <property name="maximumSize">
    <size>
     <width>16777215</width>
-    <height>180</height>
+    <height>660</height>
    </size>
   </property>
   <property name="sizeIncrement">
@@ -31,157 +31,180 @@
   <property name="windowTitle">
    <string>MediaFileViewer</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout">
-   <item>
-    <layout class="QGridLayout" name="gridLayout" columnstretch="0,1">
-     <property name="sizeConstraint">
-      <enum>QLayout::SizeConstraint::SetNoConstraint</enum>
-     </property>
-     <item row="0" column="0">
-      <widget class="QLabel" name="filePathLbl">
-       <property name="font">
-        <font>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>File Path</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QLineEdit" name="filePathTxt">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>1</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>400</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="sizeIncrement">
-        <size>
-         <width>1</width>
-         <height>0</height>
-        </size>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="dateTimeLbl">
-       <property name="font">
-        <font>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>Date/Time</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <widget class="QLineEdit" name="dateTimeTxt">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>1</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>400</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="sizeIncrement">
-        <size>
-         <width>1</width>
-         <height>0</height>
-        </size>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="sidecarLbl">
-       <property name="font">
-        <font>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>Sidecar?</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="1">
-      <widget class="QLineEdit" name="sidecarTxt">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>1</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>400</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="sizeIncrement">
-        <size>
-         <width>1</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0">
-      <widget class="QLabel" name="sourceLbl">
-       <property name="font">
-        <font>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>Source</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="1">
-      <widget class="QLineEdit" name="sourceTxt">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>1</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>400</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="sizeIncrement">
-        <size>
-         <width>1</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-  </layout>
+  <widget class="QWidget" name="">
+   <property name="geometry">
+    <rect>
+     <x>11</x>
+     <y>11</y>
+     <width>486</width>
+     <height>636</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <layout class="QGridLayout" name="gridLayout">
+      <property name="sizeConstraint">
+       <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="filePathLbl">
+        <property name="font">
+         <font>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>File Path</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="filePathTxt">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>400</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="sizeIncrement">
+         <size>
+          <width>1</width>
+          <height>0</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="dateTimeLbl">
+        <property name="font">
+         <font>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Date/Time</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="dateTimeTxt">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>400</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="sizeIncrement">
+         <size>
+          <width>1</width>
+          <height>0</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="sidecarLbl">
+        <property name="font">
+         <font>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Sidecar?</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="sidecarTxt">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>400</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="sizeIncrement">
+         <size>
+          <width>1</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="sourceLbl">
+        <property name="font">
+         <font>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Source</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="sourceTxt">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>400</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="sizeIncrement">
+         <size>
+          <width>1</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QLabel" name="imageLbl">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>500</height>
+       </size>
+      </property>
+      <property name="text">
+       <string>TextLabel</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
  </widget>
  <resources/>
  <connections/>

@@ -39,139 +39,37 @@ Functions:
     on it, and the metadata needed in the renaming process
 """
 
-from datetime import datetime, timedelta
 from subprocess import PIPE, run
 from json import load, JSONDecodeError
 from pathlib import Path
 from re import compile, search, match
 from typing import Dict, List
-from enum import IntEnum
 from logging import getLogger
 
-from exiftool import ExifToolHelper
+from exiftool import ExifToolHelper  # pyright: ignore[reportMissingTypeStubs]
+from natsort import os_sorted
 from tzfpy import get_tz
 from whenever import OffsetDateTime, PlainDateTime, TimeDelta, ZonedDateTime
 
 module_logger = getLogger(__name__)
 
+# Filename for the JSON file to use
 
-# # TODO: Software source: Apps leave a tag in Software, but so do iPhone photos.
-# # Software Instagram or Layout from Instagram
-# # Software Adobe Photoshop
-# # ...
-
-# # Filename for the JSON file to use
-# jsonFileName: str = "data_file_sorted.json"
 # Filename to use the metadata obtained from the ExifTool batch processing
 etJSON: Path = Path("etJSON.json")
 objectFile: Path = Path("MediaFileList.txt")
 
-# # define this to search for "0000:00:00 00:00:00", an empty date and time
-# emptyDate: str = "0000:00:00 00:00:00"
-
-# # The List of tags to extract with exiftool
+# The List of tags to extract with exiftool
 tagsToExtract: List[str] = ["-time:all", "-UserComment", "-Make", "-Model", "-Software", "-GPS:all"]
+# List of file extensions to ignore, as EXIFTool generates empty tags for them.
+dontProcessExtensions: List[str] = [".aae", ".ds_store", ".json"]
 
-
-####
 ##
 # Compiled Regexes
 ##
 
 # GPS coordinates
 GPSCoordsRegEx = compile(r"([0-9]+) deg ([0-9]+)' ([0-9.]+)\"")
-
-
-# # To check for time offsets: +/-HH:MM
-# offsetRegEx = compile(r'[\+\-][0-9]{2}\:[0-9]{2}')
-
-# # List of known video extensions. Add them in lowercase
-# videoExtensions: List[str] = [".mov", ".mp4", ".m4v"]
-# # List of known photo extensions. Add them in lowercase
-# photoExtensions: List[str] = [".heic", ".jpg",
-#                               ".jpeg", ".png", ".gif", ".tif", ".tiff"]
-# List of known "don't process" files
-dontProcessExtensions: List[str] = [".aae", ".ds_store", ".json"]
-
-####
-# Misc stuff, helpers, etc
-####
-
-
-# def getListOfFiles(path: Path) -> List[Path]:
-#     """
-#     Returns a list of files in a folder, excluding those whose extension is listed in the
-#     dontProcessExtensions list above
-
-#     Args:
-#         path: a Path to the folder
-
-#     Returns:
-#         a list of Paths to all the files in the folder (excluding some extensions)
-#     """
-#     if not path.is_dir():
-#         module_logger.error(f"'{path}' is not a folder!")
-#         exit()
-#     return [file for file in path.rglob("*") if file.is_file() and file.suffix not in dontProcessExtensions]
-
-
-# def orderDictByDate(jsonDict: OrderedDict[str, metadataDict]) -> OrderedDict[str, metadataDict]:
-#     """
-#     Reorders a dictionary, first based on date and then based on time
-
-#     Args:
-#         jsonDict, a dict with a metadataDict as value, to be sorted
-
-#     Returns:
-#         an ordered Dict, with keys sorted by date and then time of creation
-#     """
-
-#     retVal: OrderedDict[str, metadataDict] = OrderedDict()
-#     # Use a try catch bad dictionaries without the required keys
-#     try:
-#         retVal = OrderedDict(
-#             sorted(jsonDict.items(), key=lambda item: (item[1]["date"], item[1]["time"])))
-#     except KeyError:
-#         module_logger.error( "Couldn't find 'date' and/or 'time' trying to sort a dict!")
-#         exit()
-#     return retVal
-
-
-# def stripOffset(date: str) -> Tuple[str, str]:
-#     """
-#     Strips the offset bit of a date (from HH:MM:SS[+-]OH:OM to HH:MM:SS). If the date has
-#     no offset, returns the date as it was
-
-#     Args:
-#         date: a string with a date (formatted HH:MM:SS) with or without an offset ([+-]OH:OM)
-
-#     Returns:
-#         strippedDate: the date without the offset
-#         offset: the offset, if there was one, or empty.
-#     """
-
-#     # Strip the offset, if it's included in the date
-#     m = offsetRegEx.search(date)
-#     strippedDate: str = ""
-#     offset: str = ""
-#     if date and m:
-#         # Time includes offset, so remove offset from date
-#         strippedDate = offsetRegEx.split(date)[0]
-#         offset = m[0]
-#         # module_logger.debug(f"Stripped offset from date! {date} + {offset}")
-#     else:
-#         # module_logger.error("NO OFFSET")
-#         # if no match from the regex, return the date/time as it is
-#         strippedDate = date
-#     return strippedDate, offset
-
-
-# def executeExifTool(exifToolInstance: ExifTool, arguments: List[str]) -> bool:
-#     output = exifToolInstance.execute(*arguments)
-#     if "weren't updated due to errors" in str(output):
-#         module_logger.error(f"{output}")
-#         return False
-#     return True
 
 ####
 # Creation date finder - findCreationTime
@@ -491,246 +389,36 @@ def getSidecar(fileName: Path) -> Path | None:
         return None
 
 
-# def doExifToolBatchProcessing(path: Path) -> None:
-#     """
-#     Processes a folder with ExifTool and gathers a list of tags for each file
-
-#     Args:
-#         path: a Path to the folder to process
-
-#     """
-#     files = getListOfFiles(path)
-#     files = natsorted(files)
-#     module_logger.info(, f"Found {len(files)} files")
-
-#     # # Do batch processing with ExifTool: extract all the relevant tags for our files
-#     start = time()
-#     with ExifTool() as et:
-#         # Data to extract:
-#         # CreateDate: time the file was written to flash (there's also DateTimeOriginal, which is when the shutter was actuated!)
-#         # MediaCreateDate: alternative for video files to CreateDate, if that's missing
-#         # Make and Model: used to determine if the doc comes from a "camera" or an "app"
-#         etData: List = et.execute_json(*tagsToExtract, str(path), "-r")
-#     module_logger.info( f"Processed {len(files)} files in {time() - start:0.02f}s")
-
-#     with open(etJSON, "w+") as writeFile:
-#         dump(etData, writeFile)
-
-# # Used to keep track of directory changes when traversing the FS
-# oldDirectory: Path = Path()
-
-
-# def massRenamer(jsonData: OrderedDict[str, metadataDict], photosDir: Path, isDryRun: bool = False, namePattern: str = "iPhone", selectionSubfolder: str = "") -> None:
-#     """
-#     Performs a mass rename based on the contents of a JSON file generated on a previous
-#     step.
-
-#     Args:
-#         fileName: the path to the folder containing the JSON file with the files to rename
-#         isDryRun: a debugging bool flag. If true, no rename ops are performed, just printed
-#         on screen. False by default (perform rename by default)
-#         namePatter: the string pattern to use to rename the files, "iPhone" if none passed.
-#     """
-#     # Date Histogram:
-#     # Find how many entries share the same date. We want to know this to figure out
-#     # how many zeroes the file index will have, so they are naturally sorted in the
-#     # file explorer
-#     dateHistogram = Counter(jsonData[key]['date'] for key in jsonData)
-
-#     # Counter used to name the files, starts on 1, and increases for each file with the
-#     # same capture date
-#     # One for no
-#     counter: int = 1
-#     # String used to find when the date changes
-#     prevDateStr: str = ""
-#     for key in jsonData:
-#         dateStr = jsonData[key]['date']
-#         numberOfZeroes = len(str(dateHistogram[dateStr]))
-#         # module_logger.info(f"{dateStr} has {dateHistogram[dateStr]} files")
-#         # Check the current date, and if it's the same as the previous one, increase counter. Otherwise, reset it to 1
-#         if dateStr == prevDateStr:
-#             counter += 1
-#         else:
-#             counter = 1
-
-#         # This is the list of files we are going to hanlde:
-#         # Store the current file and the name the file will have after the rename, as Paths
-#         currentFile = Path(key)
-#         renamedFile = photosDir / selectionSubfolder / \
-#             f"{dateStr.replace(':', '-')} - {namePattern} {counter:>0{numberOfZeroes}}{currentFile.suffix}"
-
-#         if not renamedFile.parent.is_dir():
-#             module_logger.debug(f"Creating {renamedFile.parent} folder")
-#             renamedFile.parent.mkdir(parents=True, exist_ok=True)
-#         # Check if the file has a sidecar. They have the same filename than their parent file
-#         # with .aae extension, but sometimes they have an 'O' at the end of the name ¯\_(ツ)_/¯
-#         sidecarPath: Path = Path()
-#         renamedSidecarPath = renamedFile.with_suffix(".aae")
-
-#         # Print the name of the folder, if it's the first file in this folder we process
-#         global oldDirectory
-#         if currentFile.parent != oldDirectory:
-#             module_logger.info(f"In {currentFile.parent}:")
-#         oldDirectory = currentFile.parent  # and remember current folder for next run
-
-#         if jsonData[key]['hasSidecar']:
-#             # Sometimes the sidecar has O at the end of the filename (most of the times), sometimes
-#             # it doesn't. If the file with the O doesn't exist, try without it
-#             sidecarPath = currentFile.parent / f"{currentFile.stem}O.aae"
-#             if not sidecarPath.is_file():
-#                 # module_logger.error("NO SIDECAR FOUND WITH O.aae, trying without O")
-#                 sidecarPath = currentFile.parent / f"{currentFile.stem}.aae"
-#                 if not sidecarPath.is_file():
-#                     module_logger.error( "NO SIDECAR FOUND WITH OR WITHOUT O.aae PATTERN")
-#                 else:
-#                     # module_logger.info(, "SIDECAR FOUND WITH O.aae pattern")
-#                     pass  # leaving this in case I want to enable the debug log
-#             else:
-#                 # module_logger.info(, "SIDECAR FOUND WITH O.aae pattern")
-#                 pass  # leaving this in case I want to enable the debug log
-
-#         # Check if the file exists before doing anything on it. This is useful to skip files that
-#         # have been processed in previous passes, without having to recreate the JSON file
-#         # Print the folder name the first time we see a "new folder"
-#         if isDryRun == False:
-#             # It's time to rename the files...
-#             if currentFile.is_file():
-#                 # if file exists, rename (maybe was renamed on previous runs)
-#                 currentFile.replace(renamedFile)
-#             if sidecarPath.is_file():
-#                 module_logger.info(, f"Trying with sidecar {sidecarPath.name} for file {renamedFile.name}")
-#                 sidecarPath.replace(renamedSidecarPath)
-#         else:
-#             # If dry-run is used, only print name changes
-#             print(
-#                 lvl.OK + f"File Name: {currentFile.name}\t->\t" + lvl.WARNING + f"{renamedFile.name}")
-#             if jsonData[key]['hasSidecar']:
-#                 module_logger.error( f"\t And also rename sidecar {sidecarPath.name} to {renamedSidecarPath.name}")
-#         prevDateStr = dateStr
-
-
-# def showAllTags(fileName: Path) -> None:
-#     """Shows all tags for a pased file"""
-#     with ExifToolHelper() as eth:
-#         fmetadata = eth.get_metadata(str(fileName))
-#         module_logger.error(f"File is {fileName}")
-#         for data in fmetadata:
-#             for key, value in data.items():
-#                 module_logger.info(, f"{key}\t{value}")
-#             if "EXIF:DateTimeOriginal" in data:
-#                 module_logger.debug( f"{data['SourceFile']}\t{data['EXIF:DateTimeOriginal']}")
-#             elif "File:FileModifyDate" in data:
-#                 module_logger.debug( f"{data['SourceFile']}\t{data['File:FileModifyDate']}")
-#             else:
-#                 module_logger.debug( f"{fileName} has no DateTimeOriginal tag")
-
-
-# def printAllDates(file: Path) -> None:
-#     with ExifTool() as et:
-#         print(et.execute("-time:all", "-G1", "-a", "-s", str(file)))
-
-
-# def test():
-#     # # Grab all tags needed
-#     # files = getListOfFiles(path)
-#     # files = natsorted(files)
-#     # module_logger.info(, f"Found {len(files)} files")
-#     # # Do batch processing with ExifTool: extract all the relevant tags for our files
-#     # start = time()
-#     # with ExifTool() as et:
-#     #     # Data to extract:
-#     #     # CreateDate: time the file was written to flash (there's also DateTimeOriginal, which is when the shutter was actuated!)
-#     #     # MediaCreateDate: alternative for video files to CreateDate, if that's missing
-#     #     etData: List = et.execute_json("-XMP:UserComment", "-CreateDate", "-MediaCreareDate", str(path), "-r")
-#     # module_logger.info(, f"Processed {len(files)} files in {time() - start:0.02f}s")
-#     # JSON file exists, process it. Pass the dryRun flag
-
-#     etData: List[OrderedDict] = []
-#     with open(etJSON, "r") as readFile:
-#         etData = load(readFile)
-
-#     keyList: List[str] = []
-#     makeList: List[str] = []
-#     modelList: List[str] = []
-#     softwareList: List[str] = []
-#     for item in etData:
-#         for key in item.keys():
-#             if key not in keyList:
-#                 keyList.append(key)
-#             if "Make" in key and key not in makeList:
-#                 makeList.append(key)
-#             if "Model" in key and key not in modelList:
-#                 modelList.append(key)
-#             if "Software" in key and key not in softwareList:
-#                 softwareList.append(key)
-
-#     # print(keyList)
-#     # print(makeList)
-#     # print(modelList)
-#     # print(softwareList)
-#     usedSW: List[str] = []
-#     for item in etData:
-#         photoMake: str = ""
-#         photoModel: str = ""
-#         photoSoftware: str = ""
-#         for make in makeList:
-#             if photoMake == "" and make in item:
-#                 photoMake = item[make]
-#         for model in modelList:
-#             if photoModel == "" and model in item:
-#                 photoModel = item[model]
-#         for software in softwareList:
-#             if photoSoftware == "" and software in item:
-#                 photoSoftware = item[software]
-#                 if "adobe" in str(photoSoftware).lower():
-#                     module_logger.debug(f"{item['SourceFile']}")
-#                 if photoSoftware not in usedSW:
-#                     usedSW.append(photoSoftware)
-
-#         if photoMake != "" and photoMake != "Apple":
-#             module_logger.info(f"{item['SourceFile']}: {photoMake} and {photoModel}")
-#         # if photoSoftware != "" and p
-#     usedSW = natsorted(usedSW)
-
-#     # Date Histogram:
-#     # Find how many entries share the same date. We want to know this to figure out
-#     # how many zeroes the file index will have, so they are naturally sorted in the
-#     # file explorer
-#     dateHistogram: dict = Counter()
-#     for software in softwareList:
-#         dateHistogram.update(item[software] for item in etData if software in item)
-
-#     dateHistogram = OrderedDict(sorted(dateHistogram.items(), key=lambda item:item[1]))
-
-#     # for key in dateHistogram:
-#     #     module_logger.info(, f"{key}\t -> \t{dateHistogram[key]}")
-
-
 class MediaFile:
     """
     A class to represent any media file (video or photo)
 
     Instance Attributes:
     --------------------
-    _fileName: Path
+    fileName: Path
         filename of the media file
-    _dateTime: str
+    dateTime: str
         The date of creation: string with format YYYY:MM:DD HH:MM:SS+OO:OO(default: "")
-    _hasSidecar: bool
+    hasSidecar: bool
         Flag to indicate if object has sidecar (default: False)
-    _source: str
+    source: str
         Origin of the file: iPhone, WhatsApp, screenshot, camera... (default: "")
+    EXIFTags: dict[str, str]
+        A list of the tags for the file found by EXIFTool. It can come handy at some point and it only takes a little
+        bit of memory to keep them (while re-scanning takes quite a while).
 
     Methods:
     --------
+    fromExifTags
+
     """
 
-    # Use slots, instead of a dict, for the attributes. This makes the attribs static,
-    # but require less memory per object and has faster access
-    __slots__ = "fileName", "dateTime", "source", "sidecar"
+    # Use slots, instead of a dict, for the attributes. This makes the attribs static, but require less memory per
+    # object and has faster access
+    __slots__ = "fileName", "dateTime", "source", "sidecar", "EXIFTags"
 
     # NOTE: Tested
-    def __init__(self, fileName: Path, dateTime: str | None, source: str):
+    def __init__(self, fileName: Path, dateTime: str | None, source: str, EXIFTags: dict[str, str] | None = None):
         """
         Attributes:
         -----------
@@ -741,16 +429,29 @@ class MediaFile:
             None if it has not been determined yet.
         source: str
             Origin of the file: iPhone, WhatsApp, screenshot, camera... (default: "")
+        sidecar: Path
+            A path to a sidecar file for this media, if available, or None otherwise
+        tags: dict[str, str]
+            The list of tags that ExifTool found for this file. Stored for convenienve in case we want to check them
+            later without having to spin another ExifTool (for example, to check the dates available in the file).
         """
         self.fileName: Path = fileName
-
         self.dateTime: str | None = dateTime
-
         self.sidecar: Path | None = getSidecar(fileName)
         self.source: str = source
+        self.EXIFTags: dict[str, str] | None = EXIFTags
 
     @classmethod
     def fromExifTags(cls, etTagsDict: Dict[str, str]):
+        """Class method to get a instance from a list of tags from ExifTool
+
+        Args:
+            etTagsDict (Dict[str, str]): a dictionary with the output of Exiftool as a JSON
+
+        Returns:
+            _type_: if the dictionary passed has the required tags, an instance of MediaFile. Raises an exception
+            otherwise.
+        """
         # Get the filename for the object
         try:
             filename_: Path = Path(etTagsDict["SourceFile"])
@@ -767,7 +468,7 @@ class MediaFile:
             print("Error")
             raise
 
-        return cls(fileName=filename_, dateTime=dateTime_, source=source_)
+        return cls(fileName=filename_, dateTime=dateTime_, source=source_, EXIFTags=etTagsDict)
 
     # NOTE: Tested
     def __repr__(self):
@@ -779,7 +480,9 @@ class MediaFile:
             f"{type(self).__name__}"
             f'(fileName=Path("{self.fileName}"), '
             f'dateTime="{self.dateTime}", '
-            f'source="{self.source}")'
+            f'source="{self.source}",'
+            f'EXIFTags="{self.EXIFTags}"'
+            ")"
         )
 
 
@@ -905,7 +608,7 @@ def storeExifToolTags(outputFile: Path, listTags: List[Dict[str, str]]) -> None:
 def generateSortedMediaFileList(etData: List[Dict[str, str]]) -> List[MediaFile]:
     """
     Creates a list of MediaFile objects from a list of dictionaries with tags comming from
-    EXIFTool.
+    EXIFTool. The list is sorted by filename using natural sorting (as in "Windows Explorer Sorting")
 
     Args:
         etData (List[Dict[str, str]): a list of dictionaries. Each dictionary is a collection of tags
@@ -928,7 +631,7 @@ def generateSortedMediaFileList(etData: List[Dict[str, str]]) -> List[MediaFile]
 
     # Sorts the list based on the filename. This will help to infer dates based on
     # "neighbours" with date.
-    mediaFileList = sorted(mediaFileList, key=lambda x: x.fileName)
+    mediaFileList = os_sorted(mediaFileList, key=lambda x: x.fileName)
     return mediaFileList
 
 
@@ -938,57 +641,72 @@ def generateSortedMediaFileList(etData: List[Dict[str, str]]) -> List[MediaFile]
 
 
 # NOTE: Tested
-def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: List[MediaFile]) -> str | None:
-    """infers the date of creation of a dateless item in a list of MediaFile. It infers a date based on the file's neighbours.
+def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: List[MediaFile]) -> tuple[str | None, str | None]:
+    """infers the date of creation of a dateless item in a list of MediaFile, based on the file's neighbours' dates.
+
+    The list has to be ordered by filename, otherwise the times we infer might not be very relevant
 
     Args:
         datelessMFIdx (int): index of the item in mediaFileList that we want to get a new date for
         mediaFileList (List[MediaFile]): a list of MediaFile objects (so we can infer the date from the neighbours)
 
     Returns:
-        str | None: the selected new date of capture for the item, or None if the file was skipped
+        tuple[str | None, str | None]: first element of the tuple, inferred date from the "left" side, using dated
+        elements that are probably older than the current element, and the second element is the inferred date on the
+        "right" side (elements that should be newer than the current element).
+        The returned values are a dateTime with offset as a string (`YYYY-MM-DDTHH:MM:SS±OO:OO`) or None if no dated
+        item could be found on that side of the list.
     """
 
-    # The list has to be ordered by filename, otherwise the times we infer might not be
-    # very relevant
-    # We start with a list of Photo objects, and the item without a date.
-    # Get the index of the item to date (or get it as paramenter?)
-    # Check the previous item in the list of instances, and the element following it
-    # If a date is found, add that date plus a minute, for example
-    # If first or last item is reached, stop searching in that direction
-    oneMinute = timedelta(minutes=1)
-    addTime: bool = True
-    datedObjectIdx: int = 0
-    i: int = 1
-    while datelessMFIdx >= i:
-        if mediaFileList[datelessMFIdx - i].getTime() is not None:
-            datedObjectIdx = datelessMFIdx - i
-            # convert time to dateTime to easily add one minute to it
-            break
-        i += 1
+    inferredDateLeft: str | None = None
+    inferredDateRight: str | None = None
+    datedObjectIdxLeft: int | None = None
+    datedObjectIdxRight: int | None = None
 
-    if datedObjectIdx == 0:
-        # No "previous" file had a date, start to look "forward"
-        i = 1
-        while datelessMFIdx + i < len(mediaFileList):
-            if mediaFileList[datelessMFIdx + i].getTime() is not None:
-                datedObjectIdx = datelessMFIdx + i
-                addTime = False
-                break
-            i += 1
+    ### Functional programming time!
+    # We will look for the first item in the right-hand side list, split from the item passed as datelessMFIdx, that
+    # has a date. We get a list of items with date using filter(), plus a lambda, and next(). And then we use
+    # list.index() to get the index of that number. If no item is found or the list is empty, we
+    # Boom! (almost a) One-liner!
+    try:
+        datedObjectIdxRight = mediaFileList.index(
+            next(filter(lambda instance: instance.dateTime is not None, mediaFileList[datelessMFIdx:]))
+        )
+    except StopIteration:
+        # The search list was an empty list (dateless item was last item of the list), or no more dated items were found
+        # Leave datedObjectIdxRight as None
+        pass
 
-    if datedObjectIdx != 0:
-        if addTime:
-            newTime = datetime.strptime(mediaFileList[datedObjectIdx].getTime(), offsetAwareFormatParsing) + (
-                oneMinute * i
-            )  # type: ignore # Complains about the possibility of dateTime being None
-        else:
-            newTime = datetime.strptime(mediaFileList[datedObjectIdx].getTime(), offsetAwareFormatParsing) - (
-                oneMinute * i
-            )  # type: ignore # Complains about the possibility of dateTime being None
-        return newTime.strftime(offsetAwareFormatStringing)
-    # else, Could not find a single dated item!
-    return None
+    # For the  left side, we reverse the search sublist
+    try:
+        datedObjectIdxLeft = mediaFileList.index(
+            next(filter(lambda instance: instance.dateTime is not None, reversed(mediaFileList[:datelessMFIdx])))
+        )
+    except StopIteration:
+        # The search list was an empty list (dateless item was last item of the list), or no more dated items were found
+        # Leave datedObjectIdxRight as None
+        pass
+
+    # At this point, datedObjectIdxLR are not None. They are -1 if no dated item was found on that side, or >=0 if a
+    # dated item was found
+    if datedObjectIdxLeft is not None:
+        # If the index is not None, then it's the index to a dated item
+        # Complains that mediaFileList[datedObjectIdxLeft].dateTime can be None, but at this point, we know that it
+        # contains a date string (otherwise we would not use it) can ignore the linting error.
+        foundDateLeft = OffsetDateTime.parse_common_iso(mediaFileList[datedObjectIdxLeft].dateTime)  # pyright: ignore[reportArgumentType]
+        # It's not DST safe to add time to a OffsetDateTime, but we can bypass that with ignore_dst. Please don't take
+        # pictures around DST change times
+        inferredDateLeft = foundDateLeft.add(
+            minutes=(datelessMFIdx - datedObjectIdxLeft), ignore_dst=True
+        ).format_common_iso()
+    if datedObjectIdxRight is not None:
+        # We can ignore the linting error because dateTime will not be None
+        foundDateRight = OffsetDateTime.parse_common_iso(mediaFileList[datedObjectIdxRight].dateTime)  # pyright: ignore[reportArgumentType]
+        inferredDateRight = foundDateRight.subtract(
+            minutes=(datedObjectIdxRight - datelessMFIdx), ignore_dst=True
+        ).format_common_iso()
+
+    return (inferredDateLeft, inferredDateRight)
 
 
 # Given a dateless file, print all the date tags the file has (from exiftool). This will include filesystem ones

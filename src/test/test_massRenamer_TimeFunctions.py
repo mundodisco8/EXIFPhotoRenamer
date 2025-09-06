@@ -1,119 +1,11 @@
 from pytest import fixture, raises
 from exiftool import ExifToolHelper, ExifTool
 
-from src.massRenamer.massRenamerClasses import findCreationTime, getTimeOffset, getTZAwareness, TZ_AWARENESS
+from src.massRenamer.massRenamerClasses import findCreationTime, MediaFile, inferDateFromNeighbours
 
 """
 This file contains tests for all the time/date handling methods of the massRenamer module
 """
-
-"""
-getTimeOffset()
-
-- Date is in CreateDate, there's a OffsetTimeDigitized tag, offset is added
-- Date is in DateTimeOriginal tag, there's a OffsetTimeOriginal tag, offset is added
-- Date is in any of the two tags, but there's no Offset tag, so consder UTC
-- Date is in other tags, consider UTC
-- String has no date, or incorrect date format
-"""
-
-
-def test_getTimeOffset_CreateDateWithOffsetTimeDigitized():
-    assert (
-        getTimeOffset(
-            {"EXIF:CreateDate": "1234:12:23 01:02:03", "EXIF:OffsetTimeDigitized": "+02:00"}, "EXIF:CreateDate"
-        )
-        == "1234:12:23 01:02:03+02:00"
-    )
-    assert (
-        getTimeOffset(
-            {"EXIF:CreateDate": "1111:12:21 02:04:05", "EXIF:OffsetTimeDigitized": "-05:00"}, "EXIF:CreateDate"
-        )
-        == "1111:12:21 02:04:05-05:00"
-    )
-    assert (
-        getTimeOffset({"EXIF:CreateDate": "1111:12:21 02:04:05", "EXIF:OffsetTimeDigitized": "Z"}, "EXIF:CreateDate")
-        == "1111:12:21 02:04:05+00:00"
-    )
-
-
-def test_getTimeOffset_DateTimeOriginalWithOffsetTimeOriginal():
-    assert (
-        getTimeOffset(
-            {"EXIF:DateTimeOriginal": "1234:12:23 01:02:03", "EXIF:OffsetTimeOriginal": "+02:00"},
-            "EXIF:DateTimeOriginal",
-        )
-        == "1234:12:23 01:02:03+02:00"
-    )
-    assert (
-        getTimeOffset(
-            {"EXIF:DateTimeOriginal": "1111:12:21 02:04:05", "EXIF:OffsetTimeOriginal": "-05:00"},
-            "EXIF:DateTimeOriginal",
-        )
-        == "1111:12:21 02:04:05-05:00"
-    )
-    assert (
-        getTimeOffset(
-            {"EXIF:DateTimeOriginal": "1111:12:21 02:04:05", "EXIF:OffsetTimeOriginal": "Z"}, "EXIF:DateTimeOriginal"
-        )
-        == "1111:12:21 02:04:05+00:00"
-    )
-
-
-def test_getTimeOffset_DateTimeTagWithoutOffsetInfo():
-    assert getTimeOffset({"EXIF:CreateDate": "1111:12:21 02:04:05"}, "EXIF:CreateDate") == "1111:12:21 02:04:05+00:00"
-    assert (
-        getTimeOffset({"EXIF:DateTimeOriginal": "1234:12:23 01:02:03"}, "EXIF:DateTimeOriginal")
-        == "1234:12:23 01:02:03+00:00"
-    )
-
-
-def test_getTimeOffset_OtherDateTags():
-    assert getTimeOffset({"XMP:CreateDate": "1111:12:21 02:04:05"}, "XMP:CreateDate") == "1111:12:21 02:04:05+00:00"
-    assert (
-        getTimeOffset({"QuickTime:DateTimeOriginal": "1234:12:23 01:02:03"}, "QuickTime:DateTimeOriginal")
-        == "1234:12:23 01:02:03+00:00"
-    )
-
-
-def test_getTimeOffset_NoDateTags():
-    with raises(Exception) as e_info:
-        getTimeOffset({"EXIF:Make": "Apple"}, "EXIF:Make")
-    with raises(Exception) as e_info:
-        getTimeOffset(
-            {"QuickTime:DateTimeOriginal": "11:33:55 01:02:03"}, "QuickTime:DateTimeOriginal"
-        ) == "1234:12:23 01:02:03+00:00"
-
-
-"""
-getTZAwareness()
-
-- Date is TZ Aware
-- Date is TZ Aware with Z
-- Date is TZ Naive
-- Date is not a Date
-"""
-
-
-def test_getTZAwareness_testAware():
-    date: str = "1234:12:12 12:12:12+05:00"
-    assert getTZAwareness(date) == TZ_AWARENESS.AWARE
-
-
-def test_getTZAwareness_testAwareWithZ():
-    date: str = "1234:12:12 12:12:12Z"
-    assert getTZAwareness(date) == TZ_AWARENESS.Z_AWARE
-
-
-def test_getTZAwareness_testNaive():
-    date: str = "1234:12:12 12:12:12"
-    assert getTZAwareness(date) == TZ_AWARENESS.NAIVE
-
-
-def test_getTZAwareness_testNotADate():
-    date: str = "1234:12:12 12:"
-    assert getTZAwareness(date) == None
-
 
 """
 findCreationTime()
@@ -209,6 +101,18 @@ def test_findCreationTime_hasOffsetInAnotherTag():
 
     ### Assert
     assert expectedDateTimeStr3 == date3
+
+
+noOffsetInTagOffsetTagWrong: dict[str, str] = {
+    "ExifIFD:CreateDate": "2025-01-01T10:48:44",
+    "ExifIFD:OffsetTimeDigitized": "+02:000",  # <- correct offset for CreateDate
+}
+
+
+def test_findCreationTime_hasOffsetTagButOffsetWrong():
+    # Check that ValueError is raised
+    with raises(ValueError):
+        findCreationTime(noOffsetInTagOffsetTagWrong)
 
 
 noOffset: dict[str, str] = {
@@ -320,224 +224,160 @@ inferDateFromNeighbours
 
 """
 
-
-# @fixture
-# def listPhotoOneDatelessTest1():
-#     exifData0 = {
-#         "SourceFile": "fakeFile1.jpg",
-#         "EXIF:Make": "Apple",
-#         "EXIF:Model": "iPhone 8",
-#         "EXIF:CreateDate": "1234:12:12 11:22:33",
-#     }
-#     exifData1 = {"SourceFile": "fakeFile2.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"}
-#     exifData2 = {
-#         "SourceFile": "fakeFile3.jpg",
-#         "EXIF:Make": "Apple",
-#         "EXIF:Model": "iPhone 8",
-#         "EXIF:CreateDate": "1234:12:12 11:30:33",
-#     }
-#     return [MediaFile.fromExifTags(exifData0), MediaFile.fromExifTags(exifData1), MediaFile.fromExifTags(exifData2)]
-
-
-# def test_inferDateFromNeighboursTest1(listPhotoOneDatelessTest1):
-#     listOfItems: List[MediaFile] = listPhotoOneDatelessTest1
-#     assert inferDateFromNeighbours(1, listOfItems) == "1234:12:12 11:29:33+00:00"
-
-
-# @fixture
-# def listPhotoOneDatelessTest2():
-#     exifData0 = {"SourceFile": "fakeFile1.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"}
-#     exifData1 = {"SourceFile": "fakeFile2.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"}
-#     exifData2 = {
-#         "SourceFile": "fakeFile3.jpg",
-#         "EXIF:Make": "Apple",
-#         "EXIF:Model": "iPhone 8",
-#         "EXIF:CreateDate": "1234:12:12 11:30:33",
-#     }
-#     return [MediaFile.fromExifTags(exifData0), MediaFile.fromExifTags(exifData1), MediaFile.fromExifTags(exifData2)]
+# This list contains an item without date on position 1, and elements with dates in positions 0 and 2 (just right next
+# to the dateless item)
+exifTagsForTest1 = [
+    {
+        "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
+        "XMP-photoshop:DateCreated": "2018-12-12T18:40:16+00:00",
+    },
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/042.mov"},
+    {
+        "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/141.png",
+        "XMP-photoshop:DateCreated": "2018-12-09T18:45:56+00:00",
+    },
+    {
+        "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/198.mp4",
+        "QuickTime:CreateDate": "2018-06-12T19:10:27+01:00",
+    },
+    {
+        "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/2024-06-05 - Insta_FaceBook 1.jpg",
+        "ExifIFD:CreateDate": "2024-06-05T18:16:47+01:00",
+    },
+    {
+        "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/2025-01-01 - iPhone 13 mini 1.HEIC",
+        "ExifIFD:DateTimeOriginal": "2025-01-01T10:48:44+00:00",
+    },
+]
 
 
-# def test_inferDateFromNeighboursTest2(listPhotoOneDatelessTest2):
-#     listOfItems: List[MediaFile] = listPhotoOneDatelessTest2
-#     assert inferDateFromNeighbours(1, listOfItems) == "1234:12:12 11:29:33+00:00"
+# Test one is the simplest case, where the dateless item has dated items on both sides, just next to it
+def test_inferDateFromNeighboursTest1():
+    ### Prepare
+    mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest1]
+    expectedDateFromLeft = "2018-12-12T18:41:16+00:00"
+    expectedDateFromRight = "2018-12-09T18:44:56+00:00"
+    datelessIdx = 1
+
+    ### Execute
+    dateLeft, dateRight = inferDateFromNeighbours(datelessIdx, mediaFileList)
+
+    ### Assert
+    assert expectedDateFromLeft == dateLeft
+    assert expectedDateFromRight == dateRight
 
 
-# @fixture
-# def listPhotoOneDatelessPreviousTest3():
-#     photoList = [
-#         {
-#             "SourceFile": "fakeFile1.jpg",
-#             "EXIF:Make": "Apple",
-#             "EXIF:Model": "iPhone 8",
-#             "EXIF:CreateDate": "1234:12:12 11:22:33",
-#         },
-#         {
-#             "SourceFile": "fakeFile3.jpg",
-#             "EXIF:Make": "Apple",
-#             "EXIF:Model": "iPhone 8",
-#             "EXIF:CreateDate": "1234:12:12 11:30:33",
-#         },
-#         {"SourceFile": "fakeFile1.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"},
-#         {"SourceFile": "fakeFile2.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"},
-#         {
-#             "SourceFile": "fakeFile3.jpg",
-#             "EXIF:Make": "Apple",
-#             "EXIF:Model": "iPhone 8",
-#             "EXIF:CreateDate": "1234:12:12 11:40:33",
-#         },
-#     ]
-#     return [MediaFile.fromExifTags(photo) for photo in photoList]
+# This list contains an item without date on position 2, and elements with dates in positions 0 and 4 (so, there are
+# more dateless items surrounding the date we want to infer)
+exifTagsForTest2 = [
+    {
+        "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
+        "XMP-photoshop:DateCreated": "2018-12-12T18:40:16+00:00",
+    },
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/042.mov"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/141.png"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/198.mp4"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/2024-06-05 - Insta_FaceBook 1.jpg"},
+    {
+        "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/2025-01-01 - iPhone 13 mini 1.HEIC",
+        "ExifIFD:DateTimeOriginal": "2025-01-01T10:48:44+00:00",
+    },
+]
 
 
-# def test_inferDateFromNeighboursTest3(listPhotoOneDatelessPreviousTest3):
-#     listOfItems: List[MediaFile] = listPhotoOneDatelessPreviousTest3
-#     assert inferDateFromNeighbours(3, listOfItems) == "1234:12:12 11:32:33+00:00"
+# Test two has a dateless item with dated items on both sides of the list, but with more dateless items in between
+def test_inferDateFromNeighboursTest2():
+    ### Prepare
+    mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest2]
+    expectedDateFromLeft = "2018-12-12T18:42:16+00:00"
+    expectedDateFromRight = "2025-01-01T10:45:44+00:00"
+    datelessIdx = 2
+
+    ### Execute
+    dateLeft, dateRight = inferDateFromNeighbours(datelessIdx, mediaFileList)
+
+    ### Assert
+    assert expectedDateFromLeft == dateLeft
+    assert expectedDateFromRight == dateRight
 
 
-# @fixture
-# def listPhotoOneDatelessPreviousTest4():
-#     photoList = [
-#         {"SourceFile": "fakeFile1.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"},
-#         {"SourceFile": "fakeFile3.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"},
-#         {"SourceFile": "fakeFile1.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"},
-#         {"SourceFile": "fakeFile2.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"},
-#         {
-#             "SourceFile": "fakeFile3.jpg",
-#             "EXIF:Make": "Apple",
-#             "EXIF:Model": "iPhone 8",
-#             "EXIF:CreateDate": "1234:12:12 11:40:33",
-#         },
-#     ]
-#     return [MediaFile.fromExifTags(photo) for photo in photoList]
+# This list contains no dated item on it, so any check on its members will return None on both sides
+exifTagsForTest3 = [
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/042.mov"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/141.png"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/198.mp4"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/2024-06-05 - Insta_FaceBook 1.jpg"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/2025-01-01 - iPhone 13 mini 1.HEIC"},
+]
 
 
-# def test_inferDateFromNeighboursTest4(listPhotoOneDatelessPreviousTest4):
-#     listOfItems: List[MediaFile] = listPhotoOneDatelessPreviousTest4
-#     assert inferDateFromNeighbours(2, listOfItems) == "1234:12:12 11:38:33+00:00"
+# Test two has a dateless item with dated items on both sides of the list, but with more dateless items in between
+def test_inferDateFromNeighboursTest3():
+    ### Prepare
+    mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest3]
+    expectedDateFromLeft = None
+    expectedDateFromRight = None
+
+    ### Execute
+    for idx in range(len(exifTagsForTest3)):
+        dateLeft, dateRight = inferDateFromNeighbours(idx, mediaFileList)
+
+        ### Assert
+        assert expectedDateFromLeft == dateLeft
+        assert expectedDateFromRight == dateRight
 
 
-# @fixture
-# def listPhotoOneDatelessPreviousTest5():
-#     photoList = [
-#         {"SourceFile": "fakeFile1.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"},
-#         {"SourceFile": "fakeFile3.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"},
-#         {"SourceFile": "fakeFile1.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"},
-#         {"SourceFile": "fakeFile2.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"},
-#         {"SourceFile": "fakeFile3.jpg", "EXIF:Make": "Apple", "EXIF:Model": "iPhone 8"},
-#     ]
-#     return [MediaFile.fromExifTags(photo) for photo in photoList]
+# This list contains no dated item on the left side, to check we don't overflow
+exifTagsForTest4Left = [
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/042.mov"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/141.png"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/198.mp4"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/2024-06-05 - Insta_FaceBook 1.jpg"},
+    {
+        "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/2025-01-01 - iPhone 13 mini 1.HEIC",
+        "ExifIFD:DateTimeOriginal": "2025-01-01T10:48:44+00:00",
+    },
+]
+
+exifTagsForTest4Right = [
+    {
+        "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
+        "ExifIFD:DateTimeOriginal": "2025-01-01T10:48:44+00:00",
+    },
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/042.mov"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/141.png"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/198.mp4"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/2024-06-05 - Insta_FaceBook 1.jpg"},
+    {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/2025-01-01 - iPhone 13 mini 1.HEIC"},
+]
 
 
-# def test_inferDateFromNeighboursTest5(listPhotoOneDatelessPreviousTest5):
-#     listOfItems: List[MediaFile] = listPhotoOneDatelessPreviousTest5
-#     assert inferDateFromNeighbours(2, listOfItems) == None
+# These lists have only dates on one side, to make sure we don't overflow the search or somehting silly
+def test_inferDateFromNeighboursTest4():
+    ### Prepare
+    mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest4Left]
+    expectedDateFromLeft = None
+    expectedDateFromRight = "2025-01-01T10:45:44+00:00"
+    datelessIdx = 2
 
+    ### Execute
+    dateLeft, dateRight = inferDateFromNeighbours(datelessIdx, mediaFileList)
 
-# def test_fixDateInteractive_Success(listPhotoOneDatelessPreviousTest3, mocker):
-#     listOfItems: List[MediaFile] = listPhotoOneDatelessPreviousTest3
-#     datelessItem = 2
-#     fileName = listOfItems[datelessItem].getFileName()
-#     resonse: str = (
-#         "[File]          FileInodeChangeDate             : 2024:03:13 14:22:20+00:00\n"
-#         "[QuickTime]     CreateDate                      : 2018:02:28 02:25:37\n"
-#         "[QuickTime]     ModifyDate                      : 2018:02:28 02:25:39\n"
-#         "[QuickTime]     TrackCreateDate                 : 2018:02:28 02:25:37\n"
-#         "[QuickTime]     TrackModifyDate                 : 2018:02:28 02:25:39\n"
-#         "[QuickTime]     MediaCreateDate                 : 2018:02:28 02:25:37\n"
-#         "[QuickTime]     MediaModifyDate                 : 2018:02:28 02:25:39"
-#     )
-#     mocker.patch("exiftool.ExifTool.execute", return_value=resonse)
-#     mocker.patch("massRenamer.massRenamerClasses._getInput", return_value="2")
+    ### Assert
+    assert expectedDateFromLeft == dateLeft
+    assert expectedDateFromRight == dateRight
 
-#     assert fixDateInteractive(datelessItem, listOfItems) == "2018:02:28 02:25:37"
-#     ExifTool.execute.assert_called_with("-time:all", "-G1", "-a", "-s", str(fileName))
+    ### Prepare
+    mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest4Right]
+    expectedDateFromLeft = "2025-01-01T10:50:44+00:00"
+    expectedDateFromRight = None
+    datelessIdx = 2
 
+    ### Execute
+    dateLeft, dateRight = inferDateFromNeighbours(datelessIdx, mediaFileList)
 
-# def test_fixDateInteractive_CantParseTime(listPhotoOneDatelessPreviousTest3, mocker):
-#     listOfItems: List[MediaFile] = listPhotoOneDatelessPreviousTest3
-#     datelessItem = 2
-#     fileName = listOfItems[datelessItem].getFileName()
-#     resonse: str = (
-#         "[File]          FileInodeChangeDate             : 2024:03:13 14:22:20+00:00\n"
-#         "[QuickTime]     CreateDate                      : AAAA:BB:CC 02:25:37\n"
-#         "[QuickTime]     ModifyDate                      : 2018:02:28 02:25:39\n"
-#         "[QuickTime]     TrackCreateDate                 : 2018:02:28 02:25:37\n"
-#         "[QuickTime]     TrackModifyDate                 : 2018:02:28 02:25:39\n"
-#         "[QuickTime]     MediaCreateDate                 : 2018:02:28 02:25:37\n"
-#         "[QuickTime]     MediaModifyDate                 : 2018:02:28 02:25:39"
-#     )
-#     mocker.patch("exiftool.ExifTool.execute", return_value=resonse)
-#     mocker.patch("massRenamer.massRenamerClasses._getInput", return_value="2")
-
-#     assert fixDateInteractive(datelessItem, listOfItems) == None
-#     ExifTool.execute.assert_called_with("-time:all", "-G1", "-a", "-s", str(fileName))
-
-
-# def test_fixDateInteractive_SaveProgressToDisk(listPhotoOneDatelessPreviousTest3, mocker):
-#     listOfItems: List[MediaFile] = listPhotoOneDatelessPreviousTest3
-#     datelessItem = 2
-#     fileName = listOfItems[datelessItem].getFileName()
-#     resonse: str = (
-#         "[File]          FileInodeChangeDate             : 2024:03:13 14:22:20+00:00\n"
-#         "[QuickTime]     CreateDate                      : AAAA:BB:CC 02:25:37\n"
-#         "[QuickTime]     ModifyDate                      : 2018:02:28 02:25:39\n"
-#         "[QuickTime]     TrackCreateDate                 : 2018:02:28 02:25:37\n"
-#         "[QuickTime]     TrackModifyDate                 : 2018:02:28 02:25:39\n"
-#         "[QuickTime]     MediaCreateDate                 : 2018:02:28 02:25:37\n"
-#         "[QuickTime]     MediaModifyDate                 : 2018:02:28 02:25:39"
-#     )
-
-#     # Mock a file being opened, return the "open" object on m
-#     m = mocker.patch("massRenamer.massRenamerClasses.open", mocker.mock_open())
-#     mocker.patch("exiftool.ExifTool.execute", return_value=resonse)
-#     mocker.patch("massRenamer.massRenamerClasses._getInput", return_value="-1")
-#     # mocker.patch("massRenamer.massRenamerClasses.storeMediaFileList")
-#     with raises(SystemExit) as pytest_wrapped_e:
-#         fixDateInteractive(datelessItem, listOfItems)
-#     assert pytest_wrapped_e.type == SystemExit
-#     assert pytest_wrapped_e.value.code == 0
-#     # check that open was called with a Path and the 'w' mode
-#     m.assert_called_once_with(Path("MediaFileList.txt"), "w")
-#     # And now, check it was written: notice that now we don't use m.write, but m().write!
-#     m().write.assert_called_once_with(str(listOfItems))
-#     ExifTool.execute.assert_called_with("-time:all", "-G1", "-a", "-s", str(fileName))
-
-
-# def test_fixDateInteractive_SkipFile(listPhotoOneDatelessPreviousTest3, mocker):
-#     listOfItems: List[MediaFile] = listPhotoOneDatelessPreviousTest3
-#     datelessItem = 2
-#     fileName = listOfItems[datelessItem].getFileName()
-#     resonse: str = (
-#         "[File]          FileInodeChangeDate             : 2024:03:13 14:22:20+00:00\n"
-#         "[QuickTime]     CreateDate                      : AAAA:BB:CC 02:25:37\n"
-#         "[QuickTime]     ModifyDate                      : 2018:02:28 02:25:39\n"
-#         "[QuickTime]     TrackCreateDate                 : 2018:02:28 02:25:37\n"
-#         "[QuickTime]     TrackModifyDate                 : 2018:02:28 02:25:39\n"
-#         "[QuickTime]     MediaCreateDate                 : 2018:02:28 02:25:37\n"
-#         "[QuickTime]     MediaModifyDate                 : 2018:02:28 02:25:39"
-#     )
-#     mocker.patch("exiftool.ExifTool.execute", return_value=resonse)
-#     mocker.patch("massRenamer.massRenamerClasses._getInput", return_value="0")
-
-#     assert fixDateInteractive(datelessItem, listOfItems) == None
-#     ExifTool.execute.assert_called_with("-time:all", "-G1", "-a", "-s", str(fileName))
-
-
-# def test_fixDateInteractive_WeirdInput(listPhotoOneDatelessPreviousTest3, mocker):
-#     listOfItems: List[MediaFile] = listPhotoOneDatelessPreviousTest3
-#     datelessItem = 2
-#     fileName = listOfItems[datelessItem].getFileName()
-#     resonse: str = (
-#         "[File]          FileInodeChangeDate             : 2024:03:13 14:22:20+00:00\n"
-#         "[QuickTime]     CreateDate                      : AAAA:BB:CC 02:25:37\n"
-#         "[QuickTime]     ModifyDate                      : 2018:02:28 02:25:39\n"
-#         "[QuickTime]     TrackCreateDate                 : 2018:02:28 02:25:37\n"
-#         "[QuickTime]     TrackModifyDate                 : 2018:02:28 02:25:39\n"
-#         "[QuickTime]     MediaCreateDate                 : 2018:02:28 02:25:37\n"
-#         "[QuickTime]     MediaModifyDate                 : 2018:02:28 02:25:39"
-#     )
-#     mocker.patch("exiftool.ExifTool.execute", return_value=resonse)
-#     mocker.patch("massRenamer.massRenamerClasses._getInput", return_value="A")
-
-#     assert fixDateInteractive(datelessItem, listOfItems) == None
-#     ExifTool.execute.assert_called_with("-time:all", "-G1", "-a", "-s", str(fileName))
+    ### Assert
+    assert expectedDateFromLeft == dateLeft
+    assert expectedDateFromRight == dateRight
