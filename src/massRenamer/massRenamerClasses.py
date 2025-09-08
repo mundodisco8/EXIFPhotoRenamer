@@ -436,10 +436,11 @@ class MediaFile:
             later without having to spin another ExifTool (for example, to check the dates available in the file).
         """
         self.fileName: Path = fileName
+        # TODO: do some sort of datetime string validation here?
         self.dateTime: str | None = dateTime
         self.sidecar: Path | None = getSidecar(fileName)
         self.source: str = source
-        self.EXIFTags: dict[str, str] | None = EXIFTags
+        self.EXIFTags: dict[str, str] = EXIFTags or {}
 
     @classmethod
     def fromExifTags(cls, etTagsDict: Dict[str, str]):
@@ -476,14 +477,7 @@ class MediaFile:
         Returns a string with the representation of the object: this string could be used to init an instance
         Example: MediaFile(fileName='Name', dateTime='1234-12-12 11-22-33+03:00', source="Apple iPhone 8")
         """
-        return (
-            f"{type(self).__name__}"
-            f'(fileName=Path("{self.fileName}"), '
-            f'dateTime="{self.dateTime}", '
-            f'source="{self.source}",'
-            f'EXIFTags="{self.EXIFTags}"'
-            ")"
-        )
+        return f'{type(self).__name__}(fileName=Path("{self.fileName}"), dateTime="{self.dateTime}", source="{self.source}", EXIFTags={self.EXIFTags})'
 
 
 ###
@@ -707,82 +701,6 @@ def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: List[MediaFile]) 
         ).format_common_iso()
 
     return (inferredDateLeft, inferredDateRight)
-
-
-# Given a dateless file, print all the date tags the file has (from exiftool). This will include filesystem ones
-# Infer date from neighbours
-# Print all the gathered dates
-# Let user select and save new date
-# Add option to skip
-# Return new element with date (or same one if skipped)
-
-
-def _getInput() -> str:
-    """
-    Using a wrapper in input, so we can mock it, as it seems it can't be patched
-    """
-    return input()
-
-
-# NOTE: Tested
-def fixDateInteractive(datelessMFIdx: int, mediaFileList: List[MediaFile]) -> str | None:
-    """Fixes the date of a dateless item in a list of MediaFile. It presents a number of options from all the date
-    tags from the file, plus it infers a date based on the file's neighbours, and allows you to pick the best choice
-
-    Args:
-        datelessMFIdx (int): index of the item in mediaFileList that we want to get a new date for
-        mediaFileList (List[MediaFile]): a list of MediaFile objects (so we can infer the date from the neighbours)
-
-    Returns:
-        str | None: the selected new date of capture for the item, or None if the file was skipped
-    """
-
-    # Get all the "date" tags present in the file
-    fileName = mediaFileList[datelessMFIdx].getFileName()
-    datesList: list[str] = []
-    with ExifToolHelper() as et:
-        datesList = et.execute("-time:all", "-G1", "-a", "-s", str(fileName)).splitlines()
-    # Add the inferred date from its neighbours to the list
-    inferredDate = inferDateFromNeighbours(datelessMFIdx, mediaFileList)
-    if inferredDate:
-        datesList.append(f"[Inferred Date] {inferredDate}")
-
-    module_logger.info("Found these date tags:")
-    # Print all the options available
-    for idx, date_ in enumerate(datesList):
-        idx += 1
-        module_logger.info(f"{idx}) {date_}")
-
-    # Read selected date from console. If the input is not an int, return 0 and skip file
-    module_logger.info(
-        f"Do you want to pick one of these dates [1-{len(datesList)}]? (0 to skip this file, -1 if you are bored and want to save and quit)",
-    )
-    try:
-        chosenIdx = int(_getInput())
-    except:
-        chosenIdx = 0
-
-    # Parse the input
-    newDate: str | None = None
-    try:
-        if chosenIdx > 0 and chosenIdx <= len(datesList):
-            # One of the given dates from ExifTool
-            matchObj = dateTimeRegEx.search(datesList[chosenIdx - 1])  # list is 0-indexed
-            if matchObj:
-                newDate = matchObj.group()
-                # TODO: WHAT TO DO IF THIS DATE IS NOT TZ AWARE, BUT WE COULD GET THAT INFO FROM OTHER TAGS?
-                return newDate
-            else:
-                module_logger.error(f"Couldn't find a date in {datesList[chosenIdx - 1]}")
-        elif chosenIdx < 0:
-            storeMediaFileList(objectFile, mediaFileList)
-            exit(0)
-        else:
-            # skip the file from being tagged
-            return None
-    except IndexError:
-        # if the input was not an int, skip this file
-        return None
 
 
 ### STEP 2 Process Data and Extract

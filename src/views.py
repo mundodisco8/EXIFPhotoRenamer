@@ -1,6 +1,5 @@
 """This module provides the RP Renamer main window."""
 
-from collections import deque
 from pathlib import Path
 
 from PySide6.QtWidgets import QWidget, QFileDialog, QDialog, QListWidgetItem, QHeaderView
@@ -17,13 +16,18 @@ from massRenamer.massRenamerClasses import (
     tagsToExtract,
     MediaFile,
 )
-from fixDateModel import fixDateModel, isTagATimeTag
+from models import fixDateModel, isTagATimeTag, showDatelessModel
 
 
 class Window(QWidget, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self._setupUI()
+
+        ### Data Structures
+        # When we are fixing dates, this list will hold the date that we select for each file. A dict where
+        # the key is the name of the file and the value is the currently selected new date for that file
+        self.selectedDates: dict[str, str] = {}
 
         ### UI stuff
         # Open file/folder
@@ -35,14 +39,20 @@ class Window(QWidget, Ui_MainWindow):
         self.mediaFileViewer = MediaFileViewer(self)
         self.refreshFilesToRenameBtn.clicked.connect(self.loadJSON)
         # Fix Dates Tab
-        self.toFixDatesList.itemClicked.connect(self.updateListOfDates)
+        # toFixDates Table: shows the filenames of the files that don't have dates, and the currently selected date for
+        # that file, if one has already been chosen
+        self.showDatelessModel = showDatelessModel()
+        self.toFixDatesTableView.setModel(self.showDatelessModel)
+        self.toFixDatesTableView.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.toFixDatesTableView.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.toFixDatesTableView.clicked.connect(self.updateListOfDates)
         # Create a model for the date fixer view, and assign it to the View widget
         self.fixDateModel = fixDateModel()
         self.datesTableView.setModel(self.fixDateModel)
         self.datesTableView.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.datesTableView.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.datesTableView.clicked.connect(self.dateSelected)
-        self.setDateBtn.clicked.connect(self.assignNewDate)
+        self.setDateBtn.clicked.connect(self.assignNewDates)
 
     def _setupUI(self):
         self.setupUi(self)  # pyright: ignore[reportUnknownMemberType]
@@ -154,11 +164,17 @@ class Window(QWidget, Ui_MainWindow):
         self.mediaFileList = generateSortedMediaFileList(tagsDictList)
 
         self.toRenameList.clear()
-        self.toFixDatesList.clear()
+        datelessFiles: list[tuple[str, str]] = []
         for item in self.mediaFileList:
-            self.toRenameList.addItem(str(item.fileName))
-            # test for now
-            self.toFixDatesList.addItem(str(item.fileName))
+            if item.dateTime is not None:
+                # if the item has a date, send it to the "toRename" list
+                self.toRenameList.addItem(str(item.fileName))
+                # TEST: For now, we also add dated items to the dateless list, for testing
+                datelessFiles.append((str(item.fileName), ""))
+            else:
+                # if it doesn't, send it to the dateless files list
+                # Add an item to the dict with the name of the file as key, and an "empty" date for now
+                datelessFiles.append((str(item.fileName), ""))
 
         # Find Dateless, try to correct them by hand. Get the actual instance that doesn't have a date and its index in
         # the list of MediaFile, as it will be handy later
@@ -168,14 +184,13 @@ class Window(QWidget, Ui_MainWindow):
 
         if len(dateless) > 0:
             for datelessItem in dateless:
-                self.toFixDatesList.addItem(str(datelessItem[1].fileName))
                 inferredDates = inferDateFromNeighbours(datelessItem[0], self.mediaFileList)
                 if inferredDates[0]:
-                    if self.mediaFileList[datelessItem[0]].EXIFTags:
-                        self.mediaFileList[datelessItem[0]].EXIFTags["Inferred:LeftDate"] = inferredDates[0]
+                    self.mediaFileList[datelessItem[0]].EXIFTags["Inferred:LeftDate"] = inferredDates[0]
                 if inferredDates[1]:
-                    if self.mediaFileList[datelessItem[0]].EXIFTags:
-                        self.mediaFileList[datelessItem[0]].EXIFTags["Inferred:RightDate"] = inferredDates[1]
+                    self.mediaFileList[datelessItem[0]].EXIFTags["Inferred:RightDate"] = inferredDates[1]
+
+        self.showDatelessModel.replaceListOfFiles(datelessFiles)
 
     @Slot()
     def loadExifTagsFromJSON(self) -> None:
@@ -185,7 +200,12 @@ class Window(QWidget, Ui_MainWindow):
         Action for the selection of a JSON file dialog.
         """
 
+        # Because we are "starting the process", clean the state
         self.toRenameList.clear()
+        self.namePreviewList.clear()
+        # FIXME: self.toFixDatesTableView.clear()
+        self.selectedDates = {}
+
         # If the current directory field has something on it, use it as starting point for looking for a JSON
         if self.currDirTxt.text():
             initDir = self.currDirTxt.text()
@@ -208,55 +228,99 @@ class Window(QWidget, Ui_MainWindow):
         # Y coord is MainWindow's y (so titlebars are aligned in height)
         self.mediaFileViewer.move(self.geometry().x() + self.width(), self.y())
 
+    def _updateMediaFileViewerFromInstance(self, mediaFile: MediaFile) -> None:
+        self.mediaFileViewer.filePathTxt.setText(str(mediaFile.fileName))
+        self.mediaFileViewer.dateTimeTxt.setText(mediaFile.dateTime)
+        self.mediaFileViewer.sidecarTxt.setText(str(mediaFile.sidecar))
+        self.mediaFileViewer.sourceTxt.setText(mediaFile.source)
+        pixMap = QPixmap(mediaFile.fileName).scaled(
+            self.mediaFileViewer.imageLbl.size(), Qt.AspectRatioMode.KeepAspectRatio
+        )
+        self.mediaFileViewer.imageLbl.setPixmap(pixMap)
+
     @Slot(QListWidgetItem)
     def updateMediaFileViewer(self, current: QListWidgetItem) -> None:
-        # self.mediaFileViewer.filePathTxt.setText(previous.text())
-        # next((x for x in test_list if x.value == value), None)
-        instance = None
-        for instance in self.mediaFileList:
-            if instance.fileName == Path(current.text()):
-                break
-            else:
-                instance = None
+        # Find an instance of MediaFile that as its filename the text in the currently selected cell of the toRename
+        # list
+        instance: MediaFile | None = next(
+            filter(lambda instance: instance.fileName == Path(current.text()), self.mediaFileList), None
+        )
 
         if instance:
-            self.mediaFileViewer.filePathTxt.setText(str(instance.fileName))
-            self.mediaFileViewer.dateTimeTxt.setText(instance.dateTime)
-            self.mediaFileViewer.sidecarTxt.setText(str(instance.sidecar))
-            self.mediaFileViewer.sourceTxt.setText(instance.source)
-            pixMap = QPixmap(instance.fileName).scaled(
-                self.mediaFileViewer.imageLbl.size(), Qt.AspectRatioMode.KeepAspectRatio
-            )
-            self.mediaFileViewer.imageLbl.setPixmap(pixMap)
+            self._updateMediaFileViewerFromInstance(instance)
 
     @Slot()
-    def updateListOfDates(self, current: QListWidgetItem) -> None:
-        instance = None
-        for instance in self.mediaFileList:
-            if instance.fileName == Path(current.text()):
-                self.updateMediaFileViewer(current)
-                break
-            else:
-                instance = None
+    def updateListOfDates(self) -> None:
+        """When we select an item from the Files without a clear date, update the MediaFile viewer pane to get some
+        context and then show its date tags so one can be selected
+        """
 
-        if instance and instance.EXIFTags:
-            newList: list[tuple[str, str]] = []
-            for tag in instance.EXIFTags:
-                if isTagATimeTag(tag):
-                    newList.append((tag, instance.EXIFTags[tag]))
-            self.fixDateModel.replaceListOfTags(newList)
-            # Clear the selection as it might be out of bounds in the new list
-            self.datesTableView.clearSelection()
+        # To get the selected filename, get the index of the currently selected cell ...
+        index = self.toFixDatesTableView.selectionModel().currentIndex()
+        # and grab whatever is in column 0
+        currFileName = str(index.sibling(index.row(), 0).data())
+
+        # Find an instance of MediaFile that has currFileName as its filename
+        instance: MediaFile | None = next(
+            filter(lambda instance: instance.fileName == Path(currFileName), self.mediaFileList), None
+        )
+        if instance:
+            # If the selected item is in the list (it should!) then update the mediaViewer pane
+            self._updateMediaFileViewerFromInstance(instance)
+            if instance.EXIFTags:  # if the dict has tags
+                # Show the date tags for this file
+                newList: list[tuple[str, str]] = []
+                for tag in instance.EXIFTags:
+                    if isTagATimeTag(tag):
+                        newList.append((tag, instance.EXIFTags[tag]))
+                self.fixDateModel.replaceListOfTags(newList)
+                # Clear the selection as it might be out of bounds in the new list
+                self.datesTableView.clearSelection()
+            # And finally, if a date has been selected already, show it
+            if str(instance.fileName) in self.selectedDates.keys():
+                self.dateChosenTxt.setText(self.selectedDates[str(instance.fileName)])
 
     @Slot()
     def dateSelected(self) -> None:
+        """Action to perform when a date of the available dates to fix a dateless item has been  selected"""
+
         index = self.datesTableView.selectionModel().currentIndex()
         # Get the value of the time column, no matter which one of the two cells was clicked
         valueStr = str(index.sibling(index.row(), 1).data())
         self.dateChosenTxt.setText(valueStr)
+        # If the key doesn't exist, it will add it, and if it does, it will update it
+        # To get the selected filename, get the index of the currently selected cell in the toFixDatesTableView
+        index = self.toFixDatesTableView.selectionModel().currentIndex()
+        # and grab whatever is in column 0
+        currFileName = str(index.sibling(index.row(), 0).data())
+        self.selectedDates[currFileName] = valueStr
+
+        # Update the Model of the dateless files to show the selected date together with its corresponding filename
+        # We can get the index of the list from row of the index of the currently selected cell
+        row = self.toFixDatesTableView.selectionModel().currentIndex().row()
+        self.showDatelessModel.datelessItemsList[row] = (currFileName, valueStr)
+        self.showDatelessModel.layoutChanged.emit()
 
     @Slot()
-    def assignNewDate(self) -> None:
+    def assignNewDates(self) -> None:
+        """Assigns the currently selected dates on their dateless items"""
+        # We have a dict with filenames and new dates
+        # For item in dict
+        #   exiftool put tags in file
+        # Remove all the items from the list of dateless
+
+        # To "save" the changes
+        #   For item in dict
+        #       Patch the mediaFile item
+        #       Set date
+        # add tags to EXIFTags
+
+        # for item in listofMediaFile
+        #   take its EXIFTool member and put it on a string
+        # save the JSON
+
+        # Probably reload the new JSON
+
         pass
 
 

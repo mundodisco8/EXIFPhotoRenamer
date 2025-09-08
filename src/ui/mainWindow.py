@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainWindow.ui'
+## Form generated from reading UI file 'MainWindow.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.9.2
 ##
@@ -59,7 +59,7 @@ class Ui_MainWindow(object):
 
         self.tabWidget = QTabWidget(MainWindow)
         self.tabWidget.setObjectName(u"tabWidget")
-        self.tabWidget.setGeometry(QRect(50, 140, 1480, 907))
+        self.tabWidget.setGeometry(QRect(50, 140, 1480, 883))
         self.Rename = QWidget()
         self.Rename.setObjectName(u"Rename")
         self.verticalLayout_2 = QVBoxLayout(self.Rename)
@@ -116,37 +116,21 @@ class Ui_MainWindow(object):
         self.tabWidget.addTab(self.Rename, "")
         self.Fix_Dates = QWidget()
         self.Fix_Dates.setObjectName(u"Fix_Dates")
-        self.gridLayout_2 = QGridLayout(self.Fix_Dates)
+        self.widget = QWidget(self.Fix_Dates)
+        self.widget.setObjectName(u"widget")
+        self.widget.setGeometry(QRect(11, 11, 1411, 829))
+        self.gridLayout_2 = QGridLayout(self.widget)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
-        self.label_5 = QLabel(self.Fix_Dates)
-        self.label_5.setObjectName(u"label_5")
-        self.label_5.setFont(font)
-
-        self.gridLayout_2.addWidget(self.label_5, 0, 0, 1, 1)
-
-        self.label_6 = QLabel(self.Fix_Dates)
+        self.gridLayout_2.setContentsMargins(0, 0, 0, 0)
+        self.label_6 = QLabel(self.widget)
         self.label_6.setObjectName(u"label_6")
         self.label_6.setFont(font)
 
-        self.gridLayout_2.addWidget(self.label_6, 0, 1, 1, 1)
-
-        self.toFixDatesList = QListWidget(self.Fix_Dates)
-        self.toFixDatesList.setObjectName(u"toFixDatesList")
-        self.toFixDatesList.setMinimumSize(QSize(700, 800))
-
-        self.gridLayout_2.addWidget(self.toFixDatesList, 1, 0, 2, 1)
-
-        self.datesTableView = QTableView(self.Fix_Dates)
-        self.datesTableView.setObjectName(u"datesTableView")
-        self.datesTableView.setMinimumSize(QSize(700, 0))
-        self.datesTableView.setMaximumSize(QSize(16777215, 16777215))
-        self.datesTableView.horizontalHeader().setVisible(True)
-
-        self.gridLayout_2.addWidget(self.datesTableView, 1, 1, 1, 1)
+        self.gridLayout_2.addWidget(self.label_6, 0, 2, 1, 1)
 
         self.horizontalLayout_3 = QHBoxLayout()
         self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
-        self.label_7 = QLabel(self.Fix_Dates)
+        self.label_7 = QLabel(self.widget)
         self.label_7.setObjectName(u"label_7")
         self.label_7.setMinimumSize(QSize(120, 0))
         self.label_7.setMaximumSize(QSize(120, 16777215))
@@ -155,33 +139,53 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_3.addWidget(self.label_7)
 
-        self.dateChosenTxt = QLineEdit(self.Fix_Dates)
+        self.dateChosenTxt = QLineEdit(self.widget)
         self.dateChosenTxt.setObjectName(u"dateChosenTxt")
 
         self.horizontalLayout_3.addWidget(self.dateChosenTxt)
 
-        self.setDateBtn = QPushButton(self.Fix_Dates)
+        self.setDateBtn = QPushButton(self.widget)
         self.setDateBtn.setObjectName(u"setDateBtn")
 
         self.horizontalLayout_3.addWidget(self.setDateBtn)
 
 
-        self.gridLayout_2.addLayout(self.horizontalLayout_3, 2, 1, 1, 1)
+        self.gridLayout_2.addLayout(self.horizontalLayout_3, 2, 2, 1, 1)
 
+        self.datesTableView = QTableView(self.widget)
+        self.datesTableView.setObjectName(u"datesTableView")
+        self.datesTableView.setMinimumSize(QSize(400, 0))
+        self.datesTableView.setMaximumSize(QSize(16777215, 16777215))
+        self.datesTableView.horizontalHeader().setVisible(True)
+
+        self.gridLayout_2.addWidget(self.datesTableView, 1, 2, 1, 1)
+
+        self.toFixDatesTableView = QTableView(self.widget)
+        self.toFixDatesTableView.setObjectName(u"toFixDatesTableView")
+
+        self.gridLayout_2.addWidget(self.toFixDatesTableView, 1, 0, 1, 1)
+
+        self.label_5 = QLabel(self.widget)
+        self.label_5.setObjectName(u"label_5")
+        self.label_5.setFont(font)
+
+        self.gridLayout_2.addWidget(self.label_5, 0, 0, 1, 1)
+
+        self.gridLayout_2.setColumnStretch(0, 7)
         self.tabWidget.addTab(self.Fix_Dates, "")
         self.mediaFileViewerBtn = QPushButton(MainWindow)
         self.mediaFileViewerBtn.setObjectName(u"mediaFileViewerBtn")
         self.mediaFileViewerBtn.setGeometry(QRect(1380, 140, 130, 29))
         self.mediaFileViewerBtn.setMinimumSize(QSize(130, 0))
-        self.widget = QWidget(MainWindow)
-        self.widget.setObjectName(u"widget")
-        self.widget.setGeometry(QRect(60, 50, 558, 71))
-        self.verticalLayout_3 = QVBoxLayout(self.widget)
+        self.layoutWidget1 = QWidget(MainWindow)
+        self.layoutWidget1.setObjectName(u"layoutWidget1")
+        self.layoutWidget1.setGeometry(QRect(60, 50, 558, 71))
+        self.verticalLayout_3 = QVBoxLayout(self.layoutWidget1)
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout = QHBoxLayout()
         self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.label = QLabel(self.widget)
+        self.label = QLabel(self.layoutWidget1)
         self.label.setObjectName(u"label")
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -192,13 +196,13 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout.addWidget(self.label)
 
-        self.currDirTxt = QLineEdit(self.widget)
+        self.currDirTxt = QLineEdit(self.layoutWidget1)
         self.currDirTxt.setObjectName(u"currDirTxt")
         self.currDirTxt.setMinimumSize(QSize(300, 0))
 
         self.horizontalLayout.addWidget(self.currDirTxt)
 
-        self.openFolderBtn = QPushButton(self.widget)
+        self.openFolderBtn = QPushButton(self.layoutWidget1)
         self.openFolderBtn.setObjectName(u"openFolderBtn")
 
         self.horizontalLayout.addWidget(self.openFolderBtn)
@@ -212,7 +216,7 @@ class Ui_MainWindow(object):
 
         self.JSONhorizontalLayout.addItem(self.horizontalSpacer_4)
 
-        self.label_4 = QLabel(self.widget)
+        self.label_4 = QLabel(self.layoutWidget1)
         self.label_4.setObjectName(u"label_4")
         sizePolicy.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
         self.label_4.setSizePolicy(sizePolicy)
@@ -220,13 +224,13 @@ class Ui_MainWindow(object):
 
         self.JSONhorizontalLayout.addWidget(self.label_4)
 
-        self.currJSONTxt = QLineEdit(self.widget)
+        self.currJSONTxt = QLineEdit(self.layoutWidget1)
         self.currJSONTxt.setObjectName(u"currJSONTxt")
         self.currJSONTxt.setMinimumSize(QSize(300, 0))
 
         self.JSONhorizontalLayout.addWidget(self.currJSONTxt)
 
-        self.openJSONBtn = QPushButton(self.widget)
+        self.openJSONBtn = QPushButton(self.layoutWidget1)
         self.openJSONBtn.setObjectName(u"openJSONBtn")
 
         self.JSONhorizontalLayout.addWidget(self.openJSONBtn)
@@ -237,7 +241,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(1)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -251,10 +255,10 @@ class Ui_MainWindow(object):
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Files To Rename", None))
         self.refreshFilesToRenameBtn.setText(QCoreApplication.translate("MainWindow", u"Refresh Files To Rename", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Rename), QCoreApplication.translate("MainWindow", u"Rename Files", None))
-        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Files Without a Clear Date", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"Date Tags in File", None))
         self.label_7.setText(QCoreApplication.translate("MainWindow", u"Date Chosen", None))
         self.setDateBtn.setText(QCoreApplication.translate("MainWindow", u"Rename", None))
+        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Files Without a Clear Date", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Fix_Dates), QCoreApplication.translate("MainWindow", u"Fix Dates", None))
         self.mediaFileViewerBtn.setText(QCoreApplication.translate("MainWindow", u"MediaFile Viewer", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Open A Folder", None))

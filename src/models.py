@@ -281,7 +281,47 @@ TIME_TAGS_LIST: list[str] = [
 ]
 
 
+class showDatelessModel(QAbstractTableModel):
+    """A model for the dateless items table
+
+    Args:
+        QAbstractTableModel (_type_): ???
+    """
+
+    def __init__(self, datelessItemsList: list[tuple[str, str]] | None = None) -> None:
+        """Inits the class
+
+        Args:
+            datelessItemsList (list[tuple[str,str]] | None, optional): A list of files that don't have a clear date.
+            Defaults to None.
+        """
+
+        super().__init__()
+        self.datelessItemsList: list[tuple[str, str]] = datelessItemsList or []
+
+    def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+        if role == Qt.ItemDataRole.DisplayRole:
+            return self.datelessItemsList[index.row()][index.column()]
+        return None
+
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+        return len(self.datelessItemsList)
+
+    def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+        return 2
+
+    def replaceListOfFiles(self, newDatelessFilesList: list[tuple[str, str]]) -> None:
+        self.datelessItemsList = newDatelessFilesList
+        self.layoutChanged.emit()
+
+
 class fixDateModel(QAbstractTableModel):
+    """A Model for the table that presents the date tags of a dateless item
+
+    Args:
+        QAbstractTableModel (_type_): ???
+    """
+
     # Sunny Beach Day Palette
     blue = "#70a7bd"
     teal = "#7bdcd0"
@@ -324,6 +364,7 @@ class fixDateModel(QAbstractTableModel):
         self.layoutChanged.emit()
 
 
+# TODO: Does this live here?
 def isTagATimeTag(tag: str) -> bool:
     """Checks if the passed tag is one of the tags returned by -time:all
 

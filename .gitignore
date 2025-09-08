@@ -1,6 +1,13 @@
 #VS Code
 .vscode/*
 
+# Media files
+*.[Jj][Pp][Gg]
+*.[Pp][Nn][Gg]
+*.[Mm][Oo][Vv]
+*.[Hh][Ee][Ii][Cc]
+*.mp4
+
 # Intermediate results
 *.json
 
