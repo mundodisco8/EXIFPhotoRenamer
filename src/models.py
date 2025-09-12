@@ -315,6 +315,7 @@ class showDatelessModel(QAbstractTableModel):
         self.layoutChanged.emit()
 
 
+# TODO: Change name!
 class fixDateModel(QAbstractTableModel):
     """A Model for the table that presents the date tags of a dateless item
 

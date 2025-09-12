@@ -356,66 +356,15 @@ def inferDateInteractive(
 
 
 def fixDateWithInferred(jsonFile: Path, filesToFix: List[str], photosFolder: Path) -> None:
-    jsonData: OrderedDict[str, metadataDict] = OrderedDict()
-    filesInFolder: List[Path] = getListOfFiles(photosFolder)
-    # Sorting the file lists, as all the work is based on the order of these files in the hard drive
-    filesInFolder = natsorted(filesInFolder)
-    pathsToFix = (photosFolder / file for file in filesToFix)
-    pathsToFix = natsorted(pathsToFix)
-
-    # Load the JSON metadata: dict with filename as str key and metadataDict as value
-    with open(jsonFile, "r") as readFile:
-        jsonData = load(readFile)
-
-    # DICT COMPREHENSION: just the dateless entries. Notice that we only use them to find the keys that are dateless
-    # but we always store the results on jsonData, which contains both dateless and dated elements!
-    # datelessItems = {key: value for (
-    #     key, value) in jsonData.items() if jsonData[key]["dateless"] == True}
-
-    # SHOW PROGRESS
-    totalNumFiles: int = len(pathsToFix)
-
-    # For each file that has the atribute dateless, either:
-    # 1) get all the dates present in the file, print them, and ask which one to use.
-    # 2) infer the date from the previous file, using the filename to decide the order
-    # And then proceed to overwrite the JSON metadata and the file tags with the new date
-    # Finally, we replace the metadata in the file with the newly found data, so we can
-    # proceed to rename
     with ExifTool() as et:
-        # We loop through datelessItems, but edit jsonData
-        changesDict: dict[str, str] = dict()
-        # Build changesDict, a dict with a date for each file, and print in screen. We will ask if we are happy
-        # with the changes before applying them
-        for filesDone, file_ in enumerate(pathsToFix):
-            # The key for the JSON file is the path to the file to fix as a string
-            key = str(file_)
-            newDate: str = ""
-            skipFileFlag: bool = False
-            inferDate, inferTime = inferDateForDateless(jsonData, key, filesInFolder)
-            debugPrint(lvl.OK, f"chosen {inferDate} {inferTime}")
-            jsonData[key]["date"] = inferDate
-            jsonData[key]["time"] = inferTime
-            jsonData[key]["dateless"] = False
-            # Write the inferred date as a tag. Probably not the most efficient way, but
-            # I don't want to overcomplicate things.
-            # The value of the tag to write, concatenating newDate and newTime
-            tagValue: str = inferDate + " " + inferTime
-            # The tag to use depends on whether it's a video or a photo:
-            changesDict[key] = tagValue
-        # Ask if we are happy with the changes propossed
-        debugPrint(lvl.WARNING, "Are you happy with these dates? (y/n)")
-        response = input()
-        if response != "y":
-            return  # nothing to do
-        # Else, apply the changes
-        with alive_bar(totalNumFiles) as bar:
-            for key in changesDict:
-                bar()
-                if (file_.suffix).lower() in (photoExtensions + videoExtensions):
-                    # Replace all time tags THAT EXIST (don't create new ones) with newDate
-                    if not executeExifTool(
-                        et, ["-ee", "-wm", "w", f"-time:all={changesDict[key]}", "-overwrite_original", key]
-                    ):
+        if (file_.suffix).lower() in (photoExtensions + videoExtensions):
+            # Replace all time tags THAT EXIST (don't create new ones) with newDate
+            # -wm write mode Set mode for writing/creating tags
+            # -P Preserve file modification date/time
+            # w
+            if not executeExifTool(
+                et, ["-wm", "w", "-p", f"-time:all={changesDict[key]}", "-overwrite_original", key]
+            ):
                         debugPrint(lvl.ERROR, f"Error overwriting date tags on {Path(key).name}")
                     # If there is no CreateDate tag, create one and apply the value
                     if not executeExifTool(et, [f"-CreateDate={changesDict[key]}", "-overwrite_original", key]):

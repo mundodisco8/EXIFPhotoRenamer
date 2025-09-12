@@ -40,13 +40,11 @@ Functions:
 """
 
 from subprocess import PIPE, run
-from json import load, JSONDecodeError
+from json import load, JSONDecodeError, dumps
 from pathlib import Path
 from re import compile, search, match
-from typing import Dict, List
 from logging import getLogger
 
-from exiftool import ExifToolHelper  # pyright: ignore[reportMissingTypeStubs]
 from natsort import os_sorted
 from tzfpy import get_tz
 from whenever import OffsetDateTime, PlainDateTime, TimeDelta, ZonedDateTime
@@ -59,10 +57,11 @@ module_logger = getLogger(__name__)
 etJSON: Path = Path("etJSON.json")
 objectFile: Path = Path("MediaFileList.txt")
 
-# The List of tags to extract with exiftool
-tagsToExtract: List[str] = ["-time:all", "-UserComment", "-Make", "-Model", "-Software", "-GPS:all"]
+# list of image extensions:
+IMAGE_EXTENSIONS: list[str] = [".jpeg", ".jpg", ".png", ".heic"]
+VIDEO_EXTENSIONS: list[str] = [".mov", ".mp4"]
 # List of file extensions to ignore, as EXIFTool generates empty tags for them.
-dontProcessExtensions: List[str] = [".aae", ".ds_store", ".json"]
+DONT_PROCESS_EXTENSIONS: list[str] = [".aae", ".ds_store", ".json", ".zip"]
 
 ##
 # Compiled Regexes
@@ -76,7 +75,7 @@ GPSCoordsRegEx = compile(r"([0-9]+) deg ([0-9]+)' ([0-9.]+)\"")
 ####
 
 # These are the tags that I'm capturing with EXIFTool about creation time
-dateTagsToCheck: List[str] = [
+dateTagsToCheck: list[str] = [
     "ExifIFD:DateTimeOriginal",
     "QuickTime:DateTimeOriginal",
     "XMP:DateTimeOriginal",
@@ -96,7 +95,7 @@ offsetDict: dict[str, str] = {
 }
 
 # List of GPS tags to grab metadata from
-GPSTagsList: List[str] = [
+GPSTagsList: list[str] = [
     "GPSLatitudeRef",
     "GPSLatitude",
     "GPSLongitudeRef",
@@ -105,7 +104,7 @@ GPSTagsList: List[str] = [
 
 
 # NOTE: Tested
-def findCreationTime(exifToolData: Dict[str, str]) -> str | None:
+def findCreationTime(exifToolData: dict[str, str]) -> str | None:
     """
     Returns the Creation Time and Date (in the local time) of creation of a file
     with EXIF data and the time offset respect UTC, extracted from the metadata returned by
@@ -144,10 +143,21 @@ def findCreationTime(exifToolData: Dict[str, str]) -> str | None:
     date: ZonedDateTime | OffsetDateTime | PlainDateTime | None = None
     for tag in dateTagsToCheck:
         if tag in exifToolData:
+            # Ideally, we got a date in the format YYYY-MM-DDThh:mm:ss±OO:OO, that we can parse as OffsetDateTime
             try:
                 date = OffsetDateTime.parse_common_iso(exifToolData[tag])
             except ValueError:
-                date = PlainDateTime.parse_common_iso(exifToolData[tag]).assume_fixed_offset(0)
+                # But it might not have offset, so try as PlainDateTime
+                try:
+                    date = PlainDateTime.parse_common_iso(exifToolData[tag]).assume_fixed_offset(0)
+                except ValueError:
+                    # At least in Quicktime tags, instead of deleting the tags, they are set to "0000:00:00 00:00:00"
+                    # which I think fails as that is not a "date" (whenever only accepts 1-1-1 first date)
+                    if exifToolData[tag] == "0000:00:00 00:00:00":
+                        # I could delete the tag, but I don't have access to the source, just a copy of it
+                        pass
+                    else:
+                        raise
 
             # At this point, we have a date with an offset, or the date didn't have offset and we assumed UTC.
             # Nevertheless, if there are GPS tags, we can get the timezone from it (more precise) or there might be
@@ -220,7 +230,7 @@ def findCreationTime(exifToolData: Dict[str, str]) -> str | None:
 
 
 # NOTE: Tested
-def isScreenShot(exifToolData: Dict[str, str]) -> bool:
+def isScreenShot(exifToolData: dict[str, str]) -> bool:
     """
     Checks if a file is a screenshot.
     On iOS, screenshots are tagged as such by adding a "UserComment" tag with the contents
@@ -241,7 +251,7 @@ def isScreenShot(exifToolData: Dict[str, str]) -> bool:
     if userCommentKeys != []:
         for key in userCommentKeys:
             # stop searching if one key with screenshot is found
-            if isScreenShotFlag == False and "screenshot" in exifToolData[key].lower():
+            if not isScreenShotFlag and "screenshot" in exifToolData[key].lower():
                 isScreenShotFlag = True
     # Else, no "comment" keys, return false
 
@@ -249,7 +259,7 @@ def isScreenShot(exifToolData: Dict[str, str]) -> bool:
 
 
 # NOTE: Tested
-def isInstaOrFace(exifToolData: Dict[str, str]) -> bool:
+def isInstaOrFace(exifToolData: dict[str, str]) -> bool:
     """
     Checks if a file is from Instagram / Facebook Apps.
     We check for partial matches of "instagram" or "facebook" in the EXIF:Software tag
@@ -270,18 +280,14 @@ def isInstaOrFace(exifToolData: Dict[str, str]) -> bool:
     if softwareKeys != []:
         for key in softwareKeys:
             # stop stearching if one key with screenshot is found
-            if (
-                isInstaFlag == False
-                and "facebook" in exifToolData[key].lower()
-                or "instagram" in exifToolData[key].lower()
-            ):
+            if not isInstaFlag and "facebook" in exifToolData[key].lower() or "instagram" in exifToolData[key].lower():
                 isInstaFlag = True
 
     return isInstaFlag
 
 
 # NOTE: Tested
-def isPicsArt(exifToolData: Dict[str, str]) -> bool:
+def isPicsArt(exifToolData: dict[str, str]) -> bool:
     """
     Checks if a file is from PicsArt Apps.
     The EXIF:Software tag is set to "PicsArt"
@@ -300,7 +306,7 @@ def isPicsArt(exifToolData: Dict[str, str]) -> bool:
 
 
 # NOTE: Tested
-def getFileSource(exifToolData: Dict[str, str]) -> str:
+def getFileSource(exifToolData: dict[str, str]) -> str:
     """
     Returns the "source" of the file.
     Normally, it's the model of the camera ("iPhone 8", "Pixel 7", "XT-30", ...), but
@@ -327,7 +333,7 @@ def getFileSource(exifToolData: Dict[str, str]) -> str:
 
     if hasModel:
         # if it has model, use it as naming pattern.
-        modelKeyList: List[str] = [key for key in exifToolData if "model" in key.lower()]
+        modelKeyList: list[str] = [key for key in exifToolData if "model" in key.lower()]
         # If more than one "model" tags are present, check that all report the same model
         if len(modelKeyList) > 1:
             if len(set([exifToolData[model] for model in modelKeyList])) != 1:
@@ -339,7 +345,7 @@ def getFileSource(exifToolData: Dict[str, str]) -> str:
         return exifToolData[modelKey]
     elif hasMake:
         # if we don't have a model, but we have a make, use that. Same algo as above
-        makeKeyList: List[str] = [key for key in exifToolData if "make" in key.lower()]
+        makeKeyList: list[str] = [key for key in exifToolData if "make" in key.lower()]
         # If more than one "make" tags are present, check that all report the same model
         if len(makeKeyList) > 1:
             if len(set([exifToolData[make] for make in makeKeyList])) != 1:
@@ -443,11 +449,11 @@ class MediaFile:
         self.EXIFTags: dict[str, str] = EXIFTags or {}
 
     @classmethod
-    def fromExifTags(cls, etTagsDict: Dict[str, str]):
+    def fromExifTags(cls, etTagsDict: dict[str, str]):
         """Class method to get a instance from a list of tags from ExifTool
 
         Args:
-            etTagsDict (Dict[str, str]): a dictionary with the output of Exiftool as a JSON
+            etTagsDict (dict[str, str]): a dictionary with the output of Exiftool as a JSON
 
         Returns:
             _type_: if the dictionary passed has the required tags, an instance of MediaFile. Raises an exception
@@ -504,16 +510,16 @@ def getFilesInFolder(inputFolder: Path) -> int:
 
 
 # NOTE: Tested
-def loadMediaFileListFromFile(inputFile: Path) -> List[MediaFile]:
+def loadMediaFileListFromFile(inputFile: Path) -> list[MediaFile]:
     """Loads and returns a list of MediaFile objects stored in a file passed as input
 
     Args:
         inputFile (Path): a file containing a list of MediaFile objects as text
 
     Returns:
-        List[MediaFile]: a list of MediaFile objects
+        list[MediaFile]: a list of MediaFile objects
     """
-    mediaFileList: List[MediaFile] = []
+    mediaFileList: list[MediaFile] = []
     try:
         with open(inputFile, "r") as readFile:
             mediaFileData: str = readFile.read()
@@ -534,20 +540,25 @@ def loadMediaFileListFromFile(inputFile: Path) -> List[MediaFile]:
 
 
 # NOTE: Tested
-def storeMediaFileList(outputFile: Path, listMediaFiles: List[MediaFile]) -> None:
+def storeMediaFileListTags(outputFile: Path, listMediaFiles: list[MediaFile]) -> None:
     """
-    Stores the list MediaFile objects passed as parameter in the file specified
+    Stores the EXIT tags of a list of MediaFile in a JSON file , so it's easy to rebuild it.
 
     Args:
         outputFile (Path): name of the file to store the data to.
-        listTags (List[MediaFile]): a list of MediaFile objects.
+        listTags (list[MediaFile]): a list of MediaFile objects.
     """
     with open(outputFile, "w") as writeFile:
-        writeFile.write(str(listMediaFiles))
+        writeFile.write("[")
+        writeFile.write(",".join([dumps(instance.EXIFTags) for instance in listMediaFiles]))
+        # for instance in listMediaFiles:
+        #     writeFile.write(dumps(instance.EXIFTags))
+        #     writeFile.write(",")
+        writeFile.write("]")
 
 
 # NOTE: Tested
-def loadExifToolTagsFromFile(inputFile: Path) -> List[Dict[str, str]]:
+def loadExifToolTagsFromFile(inputFile: Path) -> list[dict[str, str]]:
     """
     Reads the output file from the EXIFTool batch processing (a collection of EXIF
     tags).
@@ -559,9 +570,9 @@ def loadExifToolTagsFromFile(inputFile: Path) -> List[Dict[str, str]]:
         inputFile (Path): path to the file containing the output of ExifTool
 
     Returns:
-        List[Dict[str, str]]: a list of dictionaries with the tags for each file.
+        list[dict[str, str]]: a list of dictionaries with the tags for each file.
     """
-    etData: List[Dict[str, str]] = []
+    etData: list[dict[str, str]] = []
     try:
         with open(inputFile, "r") as readFile:
             # Check the file has JSON data on it
@@ -578,13 +589,13 @@ def loadExifToolTagsFromFile(inputFile: Path) -> List[Dict[str, str]]:
 
 
 # NOTE: Tested
-def storeExifToolTags(outputFile: Path, listTags: List[Dict[str, str]]) -> None:
+def storeExifToolTags(outputFile: Path, listTags: list[dict[str, str]]) -> None:
     """
     Stores the list tags passed as parameter in the file specified
 
     Args:
         outputFile (Path): name of the file to store the data to.
-        listTags (List[Dict[str,str]]): a list of dictionaries, containing the EXIF tags
+        listTags (list[dict[str,str]]): a list of dictionaries, containing the EXIF tags
         as key-value pairs, from EXIFTool
     """
 
@@ -592,34 +603,28 @@ def storeExifToolTags(outputFile: Path, listTags: List[Dict[str, str]]) -> None:
         writeFile.write(str(listTags))
 
 
-####
-# The important stuff! This are the functions that provide the functionality of this
-# module.
-####
-
-
 # NOTE: Tested
-def generateSortedMediaFileList(etData: List[Dict[str, str]]) -> List[MediaFile]:
+def generateSortedMediaFileList(etData: list[dict[str, str]]) -> list[MediaFile]:
     """
     Creates a list of MediaFile objects from a list of dictionaries with tags comming from
     EXIFTool. The list is sorted by filename using natural sorting (as in "Windows Explorer Sorting")
 
     Args:
-        etData (List[Dict[str, str]): a list of dictionaries. Each dictionary is a collection of tags
+        etData (list[dict[str, str]): a list of dictionaries. Each dictionary is a collection of tags
         obtained from EXIFTool
 
     Returns:
-        List[MediaFile]: a list of MediaFile objects, ready to be processed
+        list[MediaFile]: a list of MediaFile objects, ready to be processed
     """
-    mediaFileList: List[MediaFile] = []
+    mediaFileList: list[MediaFile] = []
 
     for entry in etData:
         # The batch processor of ExifTool processes some files that are not images, so remove
         # known bad extensions. Get the filename and check its extension
         fileName: Path = Path(entry["SourceFile"])
         # We have to check 'suffix' for files with name.extension ('example.aae'), and name for files with name starting with . ('.ds_store')
-        if (fileName.suffix.lower() not in dontProcessExtensions) and (
-            fileName.name.lower() not in dontProcessExtensions
+        if (fileName.suffix.lower() not in DONT_PROCESS_EXTENSIONS) and (
+            fileName.name.lower() not in DONT_PROCESS_EXTENSIONS
         ):
             mediaFileList.append(MediaFile.fromExifTags(entry))
 
@@ -635,14 +640,14 @@ def generateSortedMediaFileList(etData: List[Dict[str, str]]) -> List[MediaFile]
 
 
 # NOTE: Tested
-def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: List[MediaFile]) -> tuple[str | None, str | None]:
+def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: list[MediaFile]) -> tuple[str | None, str | None]:
     """infers the date of creation of a dateless item in a list of MediaFile, based on the file's neighbours' dates.
 
     The list has to be ordered by filename, otherwise the times we infer might not be very relevant
 
     Args:
         datelessMFIdx (int): index of the item in mediaFileList that we want to get a new date for
-        mediaFileList (List[MediaFile]): a list of MediaFile objects (so we can infer the date from the neighbours)
+        mediaFileList (list[MediaFile]): a list of MediaFile objects (so we can infer the date from the neighbours)
 
     Returns:
         tuple[str | None, str | None]: first element of the tuple, inferred date from the "left" side, using dated
@@ -707,25 +712,25 @@ def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: List[MediaFile]) 
 
 
 def generateMediaFileList(EXIFTagFile: Path) -> None:
-    # Being quite explicit:
-    # 1) read exif tags from file -> generate list of dicts
-    exifDicts: List[Dict[str, str]] = loadExifToolTagsFromFile(EXIFTagFile)
-    # 2) Use list of dicts -> generate list of MediaFile
-    mediaList: List[MediaFile] = generateSortedMediaFileList(exifDicts)
-    print(mediaList)
-    # 3) Store MediaFile list on disk
-    storeMediaFileList(objectFile, mediaList)
-    # 4) Find Dateless, try to correct them by hand
-    dateless = [instance for instance in mediaList if instance.dateTime is None]
-    print(dateless)
-    print(f"Found {len(dateless)} {'instance' if (len(dateless) == 1) else 'instances'} without date")
-    for item in dateless:
-        # find item in mediaList
-        idx = mediaList.index(item)
-        newDate = fixDateInteractive(idx, mediaList)
-        if newDate:
-            mediaList[idx].dateTime = newDate
+    # # Being quite explicit:
+    # # 1) read exif tags from file -> generate list of dicts
+    # exifDicts: list[dict[str, str]] = loadExifToolTagsFromFile(EXIFTagFile)
+    # # 2) Use list of dicts -> generate list of MediaFile
+    # mediaList: list[MediaFile] = generateSortedMediaFileList(exifDicts)
+    # print(mediaList)
+    # # 3) Store MediaFile list on disk
+    # storeMediaFileList(objectFile, mediaList)
+    # # 4) Find Dateless, try to correct them by hand
+    # dateless = [instance for instance in mediaList if instance.dateTime is None]
+    # print(dateless)
+    # print(f"Found {len(dateless)} {'instance' if (len(dateless) == 1) else 'instances'} without date")
+    # for item in dateless:
+    #     # find item in mediaList
+    #     idx = mediaList.index(item)
+    #     newDate = fixDateInteractive(idx, mediaList)
+    #     if newDate:
+    #         medialist[idx].dateTime = newDate
 
-    storeMediaFileList(objectFile, mediaList)
+    # storeMediaFileList(objectFile, mediaList)
 
     return

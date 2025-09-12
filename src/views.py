@@ -1,6 +1,11 @@
 """This module provides the RP Renamer main window."""
 
+from enum import IntEnum
 from pathlib import Path
+from json import loads
+from logging import getLogger, DEBUG
+from collections import deque
+
 
 from PySide6.QtWidgets import QWidget, QFileDialog, QDialog, QListWidgetItem, QHeaderView
 from PySide6.QtCore import Slot, QProcess, Qt
@@ -9,14 +14,46 @@ from PySide6.QtGui import QPixmap
 from ui.mainWindow import Ui_MainWindow
 from ui.mediaFileViewer import Ui_MediaFileViewer
 from massRenamer.massRenamerClasses import (
+    IMAGE_EXTENSIONS,
+    VIDEO_EXTENSIONS,
+    MediaFile,
     generateSortedMediaFileList,
     getFilesInFolder,
     inferDateFromNeighbours,
     loadExifToolTagsFromFile,
-    tagsToExtract,
-    MediaFile,
+    storeMediaFileListTags,
 )
 from models import fixDateModel, isTagATimeTag, showDatelessModel
+from customLogger import configConsoleHandler, emojiFormatter
+
+logger = getLogger(__name__)
+
+# The List of tags to extract with exiftool
+TAGS_TO_EXTRACT: list[str] = ["-time:all", "-UserComment", "-Make", "-Model", "-Software", "-GPS:all"]
+# Exiftool parameters to extract all the tags we are interested in
+# The date formatting is super useful, as it's really smart grabbing offsets, I think
+# -G1 group tags
+# -a allow duplicate tags
+# -s short tag names (no effect with json output but I'll leave it)
+# -j output json
+# -r recursive folder search
+# -d "%Y-%m-%dT%H:%M:%S%:z" output dates in YYYY-MM-DDTHH:MM:SS+/-Offset
+EXTRACT_ALL_TAGS_ARGS: list[str] = TAGS_TO_EXTRACT + [
+    "-G1",
+    "-a",
+    "-s",
+    "-j",
+    "-r",
+    "-d",
+    "%Y-%m-%dT%H:%M:%S%:z",
+    # The only thing missing here is the destination path
+]
+
+
+# A silly IntEnum to differentiate the type of command run during the fix dates phase
+class CMDTYPE(IntEnum):
+    SAVE_DATE = 0  # this exiftool command is the one that saves the date tags in the file
+    RESCAN = 1  # this exiftool command is the one that rescans the tags to grab the new dates
 
 
 class Window(QWidget, Ui_MainWindow):
@@ -54,18 +91,16 @@ class Window(QWidget, Ui_MainWindow):
         self.datesTableView.clicked.connect(self.dateSelected)
         self.setDateBtn.clicked.connect(self.assignNewDates)
 
+        ### Non-UI Stuff
+        # Get root logger and set the emojiFormatter
+        rootLogger = getLogger()
+        rootLogger.setLevel(DEBUG)
+        # Just for some specific situations, add a console logger, but only log warnings and errors (change to errors
+        # if found to verbose)
+        configConsoleHandler(rootLogger, emojiFormatter())
+
     def _setupUI(self):
         self.setupUi(self)  # pyright: ignore[reportUnknownMemberType]
-
-    @Slot()
-    def processStarts(self) -> None:
-        """_summary_"""
-        self.toRenameList.addItem("Process Starts")
-
-    @Slot()
-    def processEnds(self) -> None:
-        """_summary_"""
-        self.toRenameList.addItem("Process Ends")
 
     @Slot()
     def updateProgressBar(self) -> None:
@@ -103,55 +138,51 @@ class Window(QWidget, Ui_MainWindow):
         self.progressBar.setRange(0, numFiles)
         self.progressBar.setValue(0)
 
-        # Tags to Extract
-        # The date formatting is super useful, as it's really smart grabbing offsets, I think
-        # -a allow duplicate tags
-        # -s short tag names (no effect with json output but I'll leave it)
-        # -j output json
-        # -r recursive folder search
-        # -d "%Y-%m-%dT%H:%M:%S%:z" output dates in YYYY-MM-DDTHH:MM:SS+/-Offset
-        cmdArgs: list[str] = tagsToExtract + ["-G1", "-a", "-s", "-j", "-r", "-d", "%Y-%m-%dT%H:%M:%S%:z", self._selDir]
-
-        self.p = QProcess()
-        self.processOutput: str = ""
-        self.p.readyReadStandardOutput.connect(self.handleStdOut)
-        self.p.readyReadStandardError.connect(self.handleStdOut)
-        self.p.stateChanged.connect(self.handleState)
         self.progressBarTxt.setText("Extracting Tags from Files...")
         self.repaint()
-        self.p.start("exiftool", cmdArgs)
+        # Start ExifTool to grab all tags in the folder
+        # A QProcess to run the Exiftool CLI and process all tags
+        self._exifToolProcess = QProcess()
+        self.etExtractedTagsAsJSON: str = ""
+        self._exifToolProcess.readyReadStandardOutput.connect(self.handleStdOutTagParser)
+        self._exifToolProcess.readyReadStandardError.connect(self.handleStdOutTagParser)
+        self._exifToolProcess.finished.connect(self.handleFinishedTagParser)
+
+        # (A bit of a convoluted way to add the dir to a list of args while still keeping the list unmodified)
+        self._exifToolProcess.start("exiftool", EXTRACT_ALL_TAGS_ARGS + [self._selDir])
         # From here, we listen to the output and handle it in `handleStdOut()` and check the process state and handle it
         # in `handleState()`
 
     @Slot()
-    def handleStdOut(self) -> None:
+    def handleStdOutTagParser(self) -> None:
         """Check the standard out for signs of files being processed and update the progress bar"""
-        data = self.p.readAllStandardOutput().toStdString()
+        data = self._exifToolProcess.readAllStandardOutput().toStdString()
         for line in data.splitlines():
             if line:
                 line.rstrip()
-                self.processOutput += line
+                self.etExtractedTagsAsJSON += line
                 if "SourceFile" in line:
                     self.progressBar.setValue(self.progressBar.value() + 1)
                     self.repaint()
 
     @Slot()
-    def handleState(self, state: QProcess.ProcessState) -> None:
-        if state == QProcess.ProcessState.NotRunning:
-            saveFile, _ = QFileDialog.getSaveFileName(
-                self,
-                "Select A File to Save the Tags",
-                self._selDir + "/fileTags.json",  # add fileTags.json to suggest it as predetermined file name
-                "JSON Files (*.json)",
-            )
+    def handleFinishedTagParser(self) -> None:
+        self._exifToolProcess.deleteLater()
 
-            # If the Dialog is cancelled, the file returned is ""
-            if saveFile:
-                with open(Path(saveFile), "w+") as writeFile:
-                    writeFile.write(self.processOutput)
-                self.progressBarTxt.setText(f"Tags Saved in {saveFile}")
-            else:
-                self.progressBarTxt.setText("We didn't save the tags :(")
+        saveFile, _ = QFileDialog.getSaveFileName(
+            self,
+            "Select A File to Save the Tags",
+            self._selDir + "/fileTags.json",  # add fileTags.json to suggest it as predetermined file name
+            "JSON Files (*.json)",
+        )
+
+        # If the Dialog is cancelled, the file returned is ""
+        if saveFile:
+            with open(Path(saveFile), "w+") as writeFile:
+                writeFile.write(self.etExtractedTagsAsJSON)
+            self.progressBarTxt.setText(f"Tags Saved in {saveFile}")
+        else:
+            self.progressBarTxt.setText("We didn't save the tags :(")
 
     @Slot()
     def loadJSON(self) -> None:
@@ -169,8 +200,6 @@ class Window(QWidget, Ui_MainWindow):
             if item.dateTime is not None:
                 # if the item has a date, send it to the "toRename" list
                 self.toRenameList.addItem(str(item.fileName))
-                # TEST: For now, we also add dated items to the dateless list, for testing
-                datelessFiles.append((str(item.fileName), ""))
             else:
                 # if it doesn't, send it to the dateless files list
                 # Add an item to the dict with the name of the file as key, and an "empty" date for now
@@ -301,27 +330,163 @@ class Window(QWidget, Ui_MainWindow):
         self.showDatelessModel.datelessItemsList[row] = (currFileName, valueStr)
         self.showDatelessModel.layoutChanged.emit()
 
+    @staticmethod
+    def saveNewDateTags(extension: str, date: str) -> list[str]:
+        """Generates the arguments to call exiftool to store a new creation date
+
+        Args:
+            extension (str): _description_
+            date (str): _description_
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            list[str]: _description_
+        """
+        generalArgs = [
+            "-P",
+            "-overwrite_original",
+            "-d",
+            '"%Y-%m-%dT%H:%M:%S%:z"',
+        ]
+
+        saveDateArgs = [
+            f'-DateTimeOriginal="{date}"',
+            f'-CreateDate="{date}"',
+            f'-OffsetTimeOriginal="{date[-6:]}"',
+            f'-OffsetTimeDigitized="{date[-6:]}"',
+        ]
+
+        videoTags = [
+            f'-TrackCreateDate="{date}"',
+            f'-TrackModifyDate="{date}"',
+            f'-MediaCreateDate="{date}"',
+            f'-MediaModifyDate="{date}"',
+        ]
+
+        if extension.lower() in IMAGE_EXTENSIONS:
+            return saveDateArgs + generalArgs
+        elif extension.lower() in VIDEO_EXTENSIONS:
+            return saveDateArgs + videoTags + generalArgs
+        else:
+            raise ValueError(f"{extension} is not in the lists!")
+
     @Slot()
     def assignNewDates(self) -> None:
         """Assigns the currently selected dates on their dateless items"""
-        # We have a dict with filenames and new dates
-        # For item in dict
-        #   exiftool put tags in file
-        # Remove all the items from the list of dateless
 
-        # To "save" the changes
-        #   For item in dict
-        #       Patch the mediaFile item
-        #       Set date
-        # add tags to EXIFTags
+        ### Strategy
+        # We have a list of dateless items. Some of them now have a new date for them.
+        # The idea is to go file by file, inject the new date, re-read the tags, update the tags in its MediaFile
+        # instance. Once all the files have been processed, we can save the state, as that's the best
 
-        # for item in listofMediaFile
-        #   take its EXIFTool member and put it on a string
-        # save the JSON
+        # Instead of running the process, wait for it to finish and run the next one, we are going to build a deque with
+        # all the commands that we would have to run, and then run the first and pop the next on onFinish().
+        # I'll add an identifier to each deque element, so we can point each QProcess to the the correct slots.
+        self._cmdDeque: deque[tuple[CMDTYPE, list[str]]] = deque()
+        for item in self.showDatelessModel.datelessItemsList:
+            # item is a tuple with a path as a string and the date chosen for it
+            (fileName, newDate) = item
+            # If the item has a new date
+            if newDate:
+                # These are the arguments to save the date
 
-        # Probably reload the new JSON
+                saveNewDateArgs = self.saveNewDateTags(Path(fileName).suffix, newDate)
+                self._cmdDeque.append((CMDTYPE.SAVE_DATE, ["exiftool"] + saveNewDateArgs + [fileName]))
+                # As we fix the dates, we can build a list of rescan commands to run. See step 2 below
+                self._cmdDeque.append((CMDTYPE.RESCAN, ["exiftool"] + EXTRACT_ALL_TAGS_ARGS + [fileName]))
 
-        pass
+        # First, we store new dates on those dateless items were a new date has been selected.
+        # Setup the progress bar
+        numFiles = len(self._cmdDeque) // 2
+        # Get the number of files in the dir
+        self.progressBarTxt.setText("Storing new dates in items...")
+        self.repaint()  # need this to force the change in UI before we hit the UI in the event loop
+        self.progressBar.setRange(0, numFiles)
+        self.progressBar.setValue(0)
+
+        if self._cmdDeque:  # if deque is not empty
+            self.runNextCmd()
+            # From here, we listen to the output and handle it in `handleStdOutReScan()` and check the process state and
+            # handle it in `handleFinishedReScan()`
+
+    def runNextCmd(self) -> None:
+        if self._cmdDeque:
+            (cmdType, nextCmd) = self._cmdDeque.popleft()
+            self._exifToolProcess = QProcess(self)
+            if cmdType == CMDTYPE.SAVE_DATE:
+                self._exifToolProcess.readyReadStandardOutput.connect(self.handleStdOutSaveDate)
+                self._exifToolProcess.readyReadStandardError.connect(self.handleStdOutSaveDate)
+                self._exifToolProcess.finished.connect(self.handleFinishedSaveDate)
+                self._exifToolProcess.errorOccurred.connect(self.handleError)
+                self._exifToolProcess.setProgram(nextCmd[0])
+                self._exifToolProcess.setArguments(nextCmd[1:])
+                self.etReScanOutput: str = ""
+                logger.debug(f"Running {' '.join(nextCmd)}")
+                self._exifToolProcess.start()
+            elif cmdType == CMDTYPE.RESCAN:
+                self._exifToolProcess.readyReadStandardOutput.connect(self.handleStdOutReScan)
+                self._exifToolProcess.readyReadStandardError.connect(self.handleStdOutReScan)
+                self._exifToolProcess.finished.connect(self.handleFinishedReScan)
+                self._exifToolProcess.errorOccurred.connect(self.handleError)
+                self._exifToolProcess.setProgram(nextCmd[0])
+                self._exifToolProcess.setArguments(nextCmd[1:])
+                self.etReScanOutput: str = ""
+                logger.debug(f"Running {' '.join(nextCmd)}")
+                self._exifToolProcess.start()
+        else:
+            # That was the last command, save the tags and reload them
+
+            # As we have modified the mediaFileList, the easiest way to do now to update the state is save it as the
+            # json file we used to open the list and reload it
+            if Path(self._jsonFile).is_file():
+                storeMediaFileListTags(Path(self._jsonFile), self.mediaFileList)
+                # TODO:
+            # else:
+            #    open dialog?
+            # make sure the filename is stored in _jsonFile
+
+            # Reload the new JSON
+            self.loadJSON()
+
+    @Slot()
+    def handleStdOutSaveDate(self) -> None:
+        """Check the standard out for signs of files being processed and update the progress bar"""
+        self.etReScanOutput = self._exifToolProcess.readAllStandardOutput().toStdString()
+
+    @Slot()
+    def handleFinishedSaveDate(self) -> None:
+        logger.debug(f"Saved dates in file {self._exifToolProcess.arguments()[-1]}")
+        self._exifToolProcess.deleteLater()
+        self.runNextCmd()
+
+    @Slot()
+    def handleStdOutReScan(self) -> None:
+        """Check the standard out for signs of files being processed and update the progress bar"""
+        self.etReScanOutput = self._exifToolProcess.readAllStandardOutput().toStdString()
+        # The tags are returned as a json string, loads it, place them in the metadata section of the relevant
+        # item of the mediaFileList. ExifTool returns the tags as a list of dicts, as we are only dealing with one
+        # file, take the first element of the list
+        newTags: dict[str, str] = loads(self.etReScanOutput)[0]
+        # Get the filename, which is the
+        fileName = self._exifToolProcess.arguments()[-1]
+        idx = self.mediaFileList.index(
+            next(filter(lambda instance: instance.fileName == Path(fileName), self.mediaFileList))
+        )
+        self.mediaFileList[idx].EXIFTags = newTags
+
+    @Slot()
+    def handleFinishedReScan(self) -> None:
+        logger.debug(f"Rescanned {self._exifToolProcess.arguments()[-1]}")
+        self._exifToolProcess.deleteLater()
+        self.runNextCmd()
+        # Because we have saved the date and rescanned, we can update the progress bar now
+        self.progressBar.setValue(self.progressBar.value() + 1)
+
+    @Slot()
+    def handleError(self, error: QProcess.ProcessError) -> None:
+        logger.info(error)
 
 
 class MediaFileViewer(QDialog, Ui_MediaFileViewer):
