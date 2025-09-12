@@ -62,11 +62,11 @@ QProgressBar {
      <x>50</x>
      <y>140</y>
      <width>1480</width>
-     <height>883</height>
+     <height>881</height>
     </rect>
    </property>
    <property name="currentIndex">
-    <number>1</number>
+    <number>2</number>
    </property>
    <widget class="QWidget" name="Rename">
     <attribute name="title">
@@ -156,7 +156,7 @@ QProgressBar {
     <attribute name="title">
      <string>Fix Dates</string>
     </attribute>
-    <widget class="QWidget" name="">
+    <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
        <x>11</x>
@@ -221,6 +221,59 @@ QProgressBar {
       </item>
      </layout>
     </widget>
+   </widget>
+   <widget class="QWidget" name="tab">
+    <attribute name="title">
+     <string>Page</string>
+    </attribute>
+    <layout class="QVBoxLayout" name="verticalLayout_7">
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_4">
+         <item>
+          <widget class="QLabel" name="label_7">
+           <property name="text">
+            <string>Tags</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QListView" name="tagView"/>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_5">
+         <item>
+          <widget class="QLabel" name="label_8">
+           <property name="text">
+            <string>Tag Values</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QListView" name="valueView"/>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_6">
+         <item>
+          <widget class="QLabel" name="label_9">
+           <property name="text">
+            <string>File Names</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QListView" name="fileView"/>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+    </layout>
    </widget>
   </widget>
   <widget class="QPushButton" name="mediaFileViewerBtn">

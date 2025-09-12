@@ -8,7 +8,7 @@ from collections import deque
 
 
 from PySide6.QtWidgets import QWidget, QFileDialog, QDialog, QListWidgetItem, QHeaderView
-from PySide6.QtCore import Slot, QProcess, Qt
+from PySide6.QtCore import Slot, QProcess, Qt, QModelIndex, QPersistentModelIndex
 from PySide6.QtGui import QPixmap
 
 from ui.mainWindow import Ui_MainWindow
@@ -23,7 +23,7 @@ from massRenamer.massRenamerClasses import (
     loadExifToolTagsFromFile,
     storeMediaFileListTags,
 )
-from models import fixDateModel, isTagATimeTag, showDatelessModel
+from models import fixDateModel, isTagATimeTag, showDatelessModel, FileListModel, ValueListModel, TagListModel
 from customLogger import configConsoleHandler, emojiFormatter
 
 logger = getLogger(__name__)
@@ -90,6 +90,18 @@ class Window(QWidget, Ui_MainWindow):
         self.datesTableView.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.datesTableView.clicked.connect(self.dateSelected)
         self.setDateBtn.clicked.connect(self.assignNewDates)
+        # The Tag Explorer
+        # Models
+        self.tagModel = TagListModel(None)
+        self.valueModel = ValueListModel(None, "")
+        self.fileModel = FileListModel(None, "", "")
+        # Set modesl on views
+        self.tagView.setModel(self.tagModel)
+        self.valueView.setModel(self.valueModel)
+        self.fileView.setModel(self.fileModel)
+        # Signals
+        self.tagView.clicked.connect(self.onTagSelected)
+        self.valueView.clicked.connect(self.onValueSelected)
 
         ### Non-UI Stuff
         # Get root logger and set the emojiFormatter
@@ -220,6 +232,13 @@ class Window(QWidget, Ui_MainWindow):
                     self.mediaFileList[datelessItem[0]].EXIFTags["Inferred:RightDate"] = inferredDates[1]
 
         self.showDatelessModel.replaceListOfFiles(datelessFiles)
+
+        # Load the tags in the tag explorer
+        self.tagModel.replaceListOfTags(self.mediaFileList)
+        self.valueModel.replaceListOfValues(self.mediaFileList, self.tagModel.tags[0]) if self.tagModel.tags else ""
+        self.fileModel.replaceListOfFiles(
+            self.mediaFileList, self.tagModel.tags[0], self.valueModel.values[0]
+        ) if self.valueModel and self.valueModel.values else ""
 
     @Slot()
     def loadExifTagsFromJSON(self) -> None:
@@ -487,6 +506,25 @@ class Window(QWidget, Ui_MainWindow):
     @Slot()
     def handleError(self, error: QProcess.ProcessError) -> None:
         logger.info(error)
+
+    @Slot()
+    def onTagSelected(self, index: QModelIndex):
+        tag = self.tagModel.data(index, Qt.ItemDataRole.DisplayRole)
+        if tag:
+            self.valueModel.replaceListOfValues(self.mediaFileList, tag)
+            # Reset file view
+            if self.valueModel.values:
+                self.fileModel.replaceListOfFiles(self.mediaFileList, tag, self.valueModel.values[0])
+        # else:
+        #     self.fileView.setModel(FileListModel([], "", ""))
+
+    @Slot()
+    def onValueSelected(self, index: QModelIndex):
+        tag_index = self.tagView.currentIndex()
+        tag = self.tagModel.data(tag_index, Qt.ItemDataRole.DisplayRole)
+        value = self.valueModel.data(index, Qt.ItemDataRole.DisplayRole)
+        if tag and value:
+            self.fileModel.replaceListOfFiles(self.mediaFileList, tag, value)
 
 
 class MediaFileViewer(QDialog, Ui_MediaFileViewer):

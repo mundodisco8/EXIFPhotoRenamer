@@ -1,5 +1,7 @@
-from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, QPersistentModelIndex
+from PySide6.QtCore import Qt, QAbstractListModel, QAbstractTableModel, QModelIndex, QPersistentModelIndex
 from PySide6.QtGui import QColor, QFont
+
+from massRenamer.massRenamerClasses import MediaFile
 
 # These are all the time tags that -time:all extract. Note that these tags don't have their group attached to them
 # Extracted with exiftool -list -time:all
@@ -397,3 +399,63 @@ def isTagATimeTag(tag: str) -> bool:
                 return True
     # Otherwise, it's not a time tag
     return False
+
+
+class TagListModel(QAbstractListModel):
+    def __init__(self, mediaFileList: list[MediaFile] | None):
+        super().__init__()
+        self.tags: list[str] = []
+        if mediaFileList:
+            self.tags = sorted({tag for mf in mediaFileList for tag in mf.EXIFTags.keys()})
+
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+        return len(self.tags)
+
+    def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+        if role == Qt.ItemDataRole.DisplayRole and index.isValid():
+            return self.tags[index.row()]
+        return None
+
+    def replaceListOfTags(self, newMediaFileList: list[MediaFile]) -> None:
+        self.tags = sorted({tag for mf in newMediaFileList for tag in mf.EXIFTags.keys()})
+        self.layoutChanged.emit()
+
+
+class ValueListModel(QAbstractListModel):
+    def __init__(self, mediaFileList: list[MediaFile] | None, tag: str):
+        super().__init__()
+        self.values: list[str] = []
+        if mediaFileList:
+            self.values = sorted({mf.EXIFTags.get(tag) for mf in mediaFileList if tag in mf.EXIFTags})
+
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+        return len(self.values)
+
+    def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+        if role == Qt.ItemDataRole.DisplayRole and index.isValid():
+            return self.values[index.row()]
+        return None
+
+    def replaceListOfValues(self, newMediaFileList: list[MediaFile], newTag: str) -> None:
+        self.values = sorted({mf.EXIFTags.get(newTag) for mf in newMediaFileList if newTag in mf.EXIFTags})
+        self.layoutChanged.emit()
+
+
+class FileListModel(QAbstractListModel):
+    def __init__(self, mediaFileList: list[MediaFile] | None, tag: str, value: str):
+        super().__init__()
+        self.files: list[str] = []
+        if mediaFileList:
+            self.files = [str(mf.fileName) for mf in mediaFileList if mf.EXIFTags.get(tag) == value]
+
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+        return len(self.files)
+
+    def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+        if role == Qt.ItemDataRole.DisplayRole and index.isValid():
+            return self.files[index.row()]
+        return None
+
+    def replaceListOfFiles(self, newMediaFileList: list[MediaFile], newTag: str, newValue: str) -> None:
+        self.files = [str(mf.fileName) for mf in newMediaFileList if mf.EXIFTags.get(newTag) == newValue]
+        self.layoutChanged.emit()
