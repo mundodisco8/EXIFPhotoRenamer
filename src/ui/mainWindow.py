@@ -16,10 +16,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QGridLayout, QHBoxLayout, QHeaderView,
-    QLabel, QLineEdit, QListView, QListWidget,
-    QListWidgetItem, QProgressBar, QPushButton, QSizePolicy,
-    QSpacerItem, QTabWidget, QTableView, QVBoxLayout,
-    QWidget)
+    QLabel, QLineEdit, QListView, QProgressBar,
+    QPushButton, QSizePolicy, QSpacerItem, QTabWidget,
+    QTableView, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -60,7 +59,7 @@ class Ui_MainWindow(object):
 
         self.tabWidget = QTabWidget(MainWindow)
         self.tabWidget.setObjectName(u"tabWidget")
-        self.tabWidget.setGeometry(QRect(50, 140, 1480, 881))
+        self.tabWidget.setGeometry(QRect(50, 140, 1480, 873))
         self.Rename = QWidget()
         self.Rename.setObjectName(u"Rename")
         self.verticalLayout_2 = QVBoxLayout(self.Rename)
@@ -74,34 +73,21 @@ class Ui_MainWindow(object):
         self.gridLayout.setObjectName(u"gridLayout")
         self.gridLayout.setHorizontalSpacing(50)
         self.gridLayout.setVerticalSpacing(0)
-        self.label_3 = QLabel(self.Rename)
-        self.label_3.setObjectName(u"label_3")
-        font = QFont()
-        font.setBold(True)
-        self.label_3.setFont(font)
-
-        self.gridLayout.addWidget(self.label_3, 0, 1, 1, 1)
-
-        self.namePreviewList = QListWidget(self.Rename)
-        self.namePreviewList.setObjectName(u"namePreviewList")
-        self.namePreviewList.setMinimumSize(QSize(700, 0))
-
-        self.gridLayout.addWidget(self.namePreviewList, 2, 1, 1, 1)
-
-        self.pushButton_2 = QPushButton(self.Rename)
-        self.pushButton_2.setObjectName(u"pushButton_2")
-
-        self.gridLayout.addWidget(self.pushButton_2, 3, 1, 1, 1)
-
         self.label_2 = QLabel(self.Rename)
         self.label_2.setObjectName(u"label_2")
+        font = QFont()
+        font.setBold(True)
         self.label_2.setFont(font)
 
         self.gridLayout.addWidget(self.label_2, 0, 0, 1, 1)
 
-        self.toRenameList = QListWidget(self.Rename)
+        self.renameBtn = QPushButton(self.Rename)
+        self.renameBtn.setObjectName(u"renameBtn")
+
+        self.gridLayout.addWidget(self.renameBtn, 3, 1, 1, 1)
+
+        self.toRenameList = QListView(self.Rename)
         self.toRenameList.setObjectName(u"toRenameList")
-        self.toRenameList.setMinimumSize(QSize(700, 0))
 
         self.gridLayout.addWidget(self.toRenameList, 2, 0, 1, 1)
 
@@ -110,6 +96,17 @@ class Ui_MainWindow(object):
         self.refreshFilesToRenameBtn.setMinimumSize(QSize(130, 0))
 
         self.gridLayout.addWidget(self.refreshFilesToRenameBtn, 1, 0, 1, 1)
+
+        self.label_3 = QLabel(self.Rename)
+        self.label_3.setObjectName(u"label_3")
+        self.label_3.setFont(font)
+
+        self.gridLayout.addWidget(self.label_3, 0, 1, 1, 1)
+
+        self.namePreviewList = QListView(self.Rename)
+        self.namePreviewList.setObjectName(u"namePreviewList")
+
+        self.gridLayout.addWidget(self.namePreviewList, 2, 1, 1, 1)
 
 
         self.verticalLayout_2.addLayout(self.gridLayout)
@@ -123,11 +120,16 @@ class Ui_MainWindow(object):
         self.gridLayout_2 = QGridLayout(self.layoutWidget1)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.gridLayout_2.setContentsMargins(0, 0, 0, 0)
-        self.label_6 = QLabel(self.layoutWidget1)
-        self.label_6.setObjectName(u"label_6")
-        self.label_6.setFont(font)
+        self.setDateBtn = QPushButton(self.layoutWidget1)
+        self.setDateBtn.setObjectName(u"setDateBtn")
 
-        self.gridLayout_2.addWidget(self.label_6, 0, 2, 1, 1)
+        self.gridLayout_2.addWidget(self.setDateBtn, 2, 0, 1, 1)
+
+        self.label_5 = QLabel(self.layoutWidget1)
+        self.label_5.setObjectName(u"label_5")
+        self.label_5.setFont(font)
+
+        self.gridLayout_2.addWidget(self.label_5, 0, 0, 1, 1)
 
         self.datesTableView = QTableView(self.layoutWidget1)
         self.datesTableView.setObjectName(u"datesTableView")
@@ -142,16 +144,26 @@ class Ui_MainWindow(object):
 
         self.gridLayout_2.addWidget(self.toFixDatesTableView, 1, 0, 1, 1)
 
-        self.label_5 = QLabel(self.layoutWidget1)
-        self.label_5.setObjectName(u"label_5")
-        self.label_5.setFont(font)
+        self.label_6 = QLabel(self.layoutWidget1)
+        self.label_6.setObjectName(u"label_6")
+        self.label_6.setFont(font)
 
-        self.gridLayout_2.addWidget(self.label_5, 0, 0, 1, 1)
+        self.gridLayout_2.addWidget(self.label_6, 0, 2, 1, 1)
 
-        self.setDateBtn = QPushButton(self.layoutWidget1)
-        self.setDateBtn.setObjectName(u"setDateBtn")
+        self.horizontalLayout_4 = QHBoxLayout()
+        self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
+        self.label_10 = QLabel(self.layoutWidget1)
+        self.label_10.setObjectName(u"label_10")
 
-        self.gridLayout_2.addWidget(self.setDateBtn, 2, 0, 1, 1)
+        self.horizontalLayout_4.addWidget(self.label_10)
+
+        self.dateChosenTxt = QLineEdit(self.layoutWidget1)
+        self.dateChosenTxt.setObjectName(u"dateChosenTxt")
+
+        self.horizontalLayout_4.addWidget(self.dateChosenTxt)
+
+
+        self.gridLayout_2.addLayout(self.horizontalLayout_4, 2, 2, 1, 1)
 
         self.gridLayout_2.setColumnStretch(0, 7)
         self.tabWidget.addTab(self.Fix_Dates, "")
@@ -212,7 +224,7 @@ class Ui_MainWindow(object):
         self.tabWidget.addTab(self.tab, "")
         self.mediaFileViewerBtn = QPushButton(MainWindow)
         self.mediaFileViewerBtn.setObjectName(u"mediaFileViewerBtn")
-        self.mediaFileViewerBtn.setGeometry(QRect(1380, 140, 130, 29))
+        self.mediaFileViewerBtn.setGeometry(QRect(1400, 120, 130, 29))
         self.mediaFileViewerBtn.setMinimumSize(QSize(130, 0))
         self.layoutWidget2 = QWidget(MainWindow)
         self.layoutWidget2.setObjectName(u"layoutWidget2")
@@ -278,7 +290,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.tabWidget.setCurrentIndex(2)
+        self.tabWidget.setCurrentIndex(0)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -287,19 +299,20 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"EXIF Renamer", None))
         self.progressBarTxt.setText("")
-        self.label_3.setText(QCoreApplication.translate("MainWindow", u"Name Preview", None))
-        self.pushButton_2.setText(QCoreApplication.translate("MainWindow", u"Rename", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Files To Rename", None))
+        self.renameBtn.setText(QCoreApplication.translate("MainWindow", u"Rename", None))
         self.refreshFilesToRenameBtn.setText(QCoreApplication.translate("MainWindow", u"Refresh Files To Rename", None))
+        self.label_3.setText(QCoreApplication.translate("MainWindow", u"Name Preview", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Rename), QCoreApplication.translate("MainWindow", u"Rename Files", None))
-        self.label_6.setText(QCoreApplication.translate("MainWindow", u"Date Tags in File", None))
-        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Files Without a Clear Date", None))
         self.setDateBtn.setText(QCoreApplication.translate("MainWindow", u"Update Dates On Files", None))
+        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Files Without a Clear Date", None))
+        self.label_6.setText(QCoreApplication.translate("MainWindow", u"Date Tags in File", None))
+        self.label_10.setText(QCoreApplication.translate("MainWindow", u"Date Chosen", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Fix_Dates), QCoreApplication.translate("MainWindow", u"Fix Dates", None))
         self.label_7.setText(QCoreApplication.translate("MainWindow", u"Tags", None))
         self.label_8.setText(QCoreApplication.translate("MainWindow", u"Tag Values", None))
         self.label_9.setText(QCoreApplication.translate("MainWindow", u"File Names", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Page", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Tag Explorer", None))
         self.mediaFileViewerBtn.setText(QCoreApplication.translate("MainWindow", u"MediaFile Viewer", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Open A Folder", None))
         self.openFolderBtn.setText(QCoreApplication.translate("MainWindow", u"&Open Folder", None))

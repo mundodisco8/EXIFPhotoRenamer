@@ -1,14 +1,13 @@
-from pytest import fixture, raises
-from exiftool import ExifToolHelper, ExifTool
+from pytest import raises
 
-from src.massRenamer.massRenamerClasses import findCreationTime, MediaFile, inferDateFromNeighbours
+from src.massRenamer.massRenamerClasses import MediaFile, inferDateFromNeighbours
 
 """
 This file contains tests for all the time/date handling methods of the massRenamer module
 """
 
 """
-findCreationTime()
+MediaFile._findCreationTime()
 
 - Success: file has EXIF:DateTimeOriginal, date string has offset
 - Success: file has PGN:CreateDate, date string does has offset
@@ -30,7 +29,7 @@ def test_findCreationTime_hasDateTimeOriginalWithOffset():
     expectedDateTimeStr = "2025-01-01T10:48:44+00:00"
 
     ### Execute
-    date = findCreationTime(hasDateTimeOriginalWithOffsetDict)
+    date = MediaFile._findCreationTime(hasDateTimeOriginalWithOffsetDict)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date
@@ -48,7 +47,7 @@ def test_findCreationTime_hasPNGDate():
     expectedDateTimeStr = "2025-01-01T00:45:59+00:00"
 
     ### Execute
-    date = findCreationTime(PNGCreationDateDict)
+    date = MediaFile._findCreationTime(PNGCreationDateDict)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date
@@ -79,7 +78,7 @@ def test_findCreationTime_hasOffsetInAnotherTag():
     expectedDateTimeStr = "2025-01-01T10:48:44+01:00"
 
     ### Execute
-    date = findCreationTime(offsetInItsOwnTag)
+    date = MediaFile._findCreationTime(offsetInItsOwnTag)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date
@@ -88,7 +87,7 @@ def test_findCreationTime_hasOffsetInAnotherTag():
     expectedDateTimeStr2 = "2025-01-01T10:48:44-03:30"
 
     ### Execute
-    date2 = findCreationTime(offsetInItsOwnTag2)
+    date2 = MediaFile._findCreationTime(offsetInItsOwnTag2)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr2 == date2
@@ -97,7 +96,7 @@ def test_findCreationTime_hasOffsetInAnotherTag():
     expectedDateTimeStr3 = "2025-01-01T10:48:44+02:00"
 
     ### Execute
-    date3 = findCreationTime(noOffsetInTagButHasOffsetTag)
+    date3 = MediaFile._findCreationTime(noOffsetInTagButHasOffsetTag)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr3 == date3
@@ -112,7 +111,7 @@ noOffsetInTagOffsetTagWrong: dict[str, str] = {
 def test_findCreationTime_hasOffsetTagButOffsetWrong():
     # Check that ValueError is raised
     with raises(ValueError):
-        findCreationTime(noOffsetInTagOffsetTagWrong)
+        MediaFile._findCreationTime(noOffsetInTagOffsetTagWrong)  # pyright: ignore[reportPrivateUsage]
 
 
 noOffset: dict[str, str] = {
@@ -125,7 +124,7 @@ def test_findCreationTime_noOffset_ConsiderUTC():
     expectedDateTimeStr = "2025-01-01T10:48:44+00:00"
 
     ### Execute
-    date = findCreationTime(noOffset)
+    date = MediaFile._findCreationTime(noOffset)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date
@@ -144,7 +143,7 @@ def test_findCreationDate_noDates():
     expectedDateTimeStr = None
 
     ### Execute
-    date = findCreationTime(noDates)
+    date = MediaFile._findCreationTime(noDates)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date
@@ -166,7 +165,7 @@ def test_findCreationTime_GPSCoordinates():
     expectedDateTimeStr = "2025-01-01T11:48:44+01:00"
 
     ### Execute
-    date = findCreationTime(GPSCoordinatesDict)
+    date = MediaFile._findCreationTime(GPSCoordinatesDict)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date
@@ -188,7 +187,7 @@ def test_findCreationTime_GPSCoordinatesSouthWest():
     expectedDateTimeStr = "2025-01-01T06:48:44-04:00"
 
     ### Execute
-    date = findCreationTime(GPSCoordinatesSouthWestDict)
+    date = MediaFile._findCreationTime(GPSCoordinatesSouthWestDict)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date
@@ -211,7 +210,7 @@ def test_findCreationTime_GPSCoordinatesIgnoreOffset():
     expectedDateTimeStr = "2025-01-01T11:48:44+01:00"
 
     ### Execute
-    date = findCreationTime(GPSCoordinatesIgnoreOffsetDict)
+    date = MediaFile._findCreationTime(GPSCoordinatesIgnoreOffsetDict)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date

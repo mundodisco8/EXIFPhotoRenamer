@@ -62,11 +62,11 @@ QProgressBar {
      <x>50</x>
      <y>140</y>
      <width>1480</width>
-     <height>881</height>
+     <height>873</height>
     </rect>
    </property>
    <property name="currentIndex">
-    <number>2</number>
+    <number>0</number>
    </property>
    <widget class="QWidget" name="Rename">
     <attribute name="title">
@@ -84,35 +84,6 @@ QProgressBar {
        <property name="verticalSpacing">
         <number>0</number>
        </property>
-       <item row="0" column="1">
-        <widget class="QLabel" name="label_3">
-         <property name="font">
-          <font>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Name Preview</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="1">
-        <widget class="QListWidget" name="namePreviewList">
-         <property name="minimumSize">
-          <size>
-           <width>700</width>
-           <height>0</height>
-          </size>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="1">
-        <widget class="QPushButton" name="pushButton_2">
-         <property name="text">
-          <string>Rename</string>
-         </property>
-        </widget>
-       </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label_2">
          <property name="font">
@@ -125,15 +96,15 @@ QProgressBar {
          </property>
         </widget>
        </item>
-       <item row="2" column="0">
-        <widget class="QListWidget" name="toRenameList">
-         <property name="minimumSize">
-          <size>
-           <width>700</width>
-           <height>0</height>
-          </size>
+       <item row="3" column="1">
+        <widget class="QPushButton" name="renameBtn">
+         <property name="text">
+          <string>Rename</string>
          </property>
         </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QListView" name="toRenameList"/>
        </item>
        <item row="1" column="0">
         <widget class="QPushButton" name="refreshFilesToRenameBtn">
@@ -147,6 +118,21 @@ QProgressBar {
           <string>Refresh Files To Rename</string>
          </property>
         </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLabel" name="label_3">
+         <property name="font">
+          <font>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Name Preview</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QListView" name="namePreviewList"/>
        </item>
       </layout>
      </item>
@@ -166,15 +152,22 @@ QProgressBar {
       </rect>
      </property>
      <layout class="QGridLayout" name="gridLayout_2" columnstretch="7,0,0">
-      <item row="0" column="2">
-       <widget class="QLabel" name="label_6">
+      <item row="2" column="0">
+       <widget class="QPushButton" name="setDateBtn">
+        <property name="text">
+         <string>Update Dates On Files</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_5">
         <property name="font">
          <font>
           <bold>true</bold>
          </font>
         </property>
         <property name="text">
-         <string>Date Tags in File</string>
+         <string>Files Without a Clear Date</string>
         </property>
        </widget>
       </item>
@@ -200,31 +193,38 @@ QProgressBar {
       <item row="1" column="0">
        <widget class="QTableView" name="toFixDatesTableView"/>
       </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_5">
+      <item row="0" column="2">
+       <widget class="QLabel" name="label_6">
         <property name="font">
          <font>
           <bold>true</bold>
          </font>
         </property>
         <property name="text">
-         <string>Files Without a Clear Date</string>
+         <string>Date Tags in File</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QPushButton" name="setDateBtn">
-        <property name="text">
-         <string>Update Dates On Files</string>
-        </property>
-       </widget>
+      <item row="2" column="2">
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <item>
+         <widget class="QLabel" name="label_10">
+          <property name="text">
+           <string>Date Chosen</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="dateChosenTxt"/>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>
    </widget>
    <widget class="QWidget" name="tab">
     <attribute name="title">
-     <string>Page</string>
+     <string>Tag Explorer</string>
     </attribute>
     <layout class="QVBoxLayout" name="verticalLayout_7">
      <item>
@@ -279,8 +279,8 @@ QProgressBar {
   <widget class="QPushButton" name="mediaFileViewerBtn">
    <property name="geometry">
     <rect>
-     <x>1380</x>
-     <y>140</y>
+     <x>1400</x>
+     <y>120</y>
      <width>130</width>
      <height>29</height>
     </rect>

@@ -31,7 +31,7 @@ tagsForOneInstance = [
     {
         "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
         "PNG:CreateDate": "2025-09-03T17:29:21+01:00",
-        "XMP-exif:UserComment": "Screenshot",
+        "XMP-exif:UserComments": "Screenshot",
     }
 ]
 
@@ -52,7 +52,7 @@ def test_generateSortedMediaFileList_OneObject():
     assert mediaFileList[0].EXIFTags == {
         "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
         "PNG:CreateDate": "2025-09-03T17:29:21+01:00",
-        "XMP-exif:UserComment": "Screenshot",
+        "XMP-exif:UserComments": "Screenshot",
     }
 
 
@@ -308,7 +308,7 @@ testFileData: str = """[
 def test_loadExifToolTagsFromFile_success(mocker: MockerFixture):
     ### Prepare test
     # Test file is a string with tags to create two MediaFile objects
-    mockFileOpen = mocker.mock_open(read_data=testFileData)
+    mockFileOpen = mocker.mock_open(read_data=testFileData)  # pyright: ignore[reportUnknownMemberType]
     mocker.patch("builtins.open", mockFileOpen)
 
     ### Run code
@@ -326,15 +326,15 @@ testFileDataNoJson: str = """some Text"""
 def test_loadExifToolTagsFromFile_FileIsNotJSON(mocker: MockerFixture):
     ### Prepare test
     # Test file is a string with tags to create two MediaFile objects
-    mockFileOpen = mocker.mock_open(read_data=testFileDataNoJson)
+    mockFileOpen = mocker.mock_open(read_data=testFileDataNoJson)  # pyright: ignore[reportUnknownMemberType]
     mocker.patch("builtins.open", mockFileOpen)
 
-    with raises(JSONDecodeError) as excinfo:
+    with raises(JSONDecodeError):
         loadExifToolTagsFromFile(Path("testinput.json"))
 
 
 def test_loadExifToolTagsFromFile_FileDoesntExist():
-    with raises(FileNotFoundError) as excinfo:
+    with raises(FileNotFoundError):
         loadExifToolTagsFromFile(Path("FileThatDoesn'tExists.json"))
 
 
@@ -383,19 +383,16 @@ mediaFileList = [
     MediaFile(
         Path("A.jpg"),
         None,
-        "iPhone 8",
         {"SourceFile": "A.jpg", "QuickTime:Make": "Apple", "QuickTime:Model": "iPhone 8"},
     ),
     MediaFile(
         Path("B.jpg"),
         None,
-        "iPhone 9",
         {"SourceFile": "B.jpg", "QuickTime:Make": "Apple", "QuickTime:Model": "iPhone 9"},
     ),
     MediaFile(
         Path("C.jpg"),
         None,
-        "Screenshot",
         {
             "SourceFile": "C.jpg",
             "XMP-exif:UserComment": "Screenshot",
@@ -406,7 +403,7 @@ mediaFileList = [
 
 def test_storeMediaFileList_success(mocker: MockerFixture):
     ### Prepare test
-    mockOpen = mocker.mock_open()
+    mockOpen = mocker.mock_open()  # pyright: ignore[reportUnknownMemberType]
     mocker.patch("builtins.open", mockOpen)
 
     expectedOutput = [
@@ -444,7 +441,7 @@ class MockWriter:
 
 def test_storeMediaFileList_successCheckOutput(mocker: MockerFixture):
     ### Prepare test
-    mockOpen = mocker.mock_open()
+    mockOpen = mocker.mock_open()  # pyright: ignore[reportUnknownMemberType]
     writer = MockWriter()
     mockOpen.return_value.write = writer.write
     mocker.patch("builtins.open", mockOpen)

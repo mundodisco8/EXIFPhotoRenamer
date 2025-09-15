@@ -1,3 +1,5 @@
+from enum import IntEnum, StrEnum
+
 from PySide6.QtCore import Qt, QAbstractListModel, QAbstractTableModel, QModelIndex, QPersistentModelIndex
 from PySide6.QtGui import QColor, QFont
 
@@ -283,6 +285,85 @@ TIME_TAGS_LIST: list[str] = [
 ]
 
 
+class SunnyBeach(StrEnum):
+    # Sunny Beach Day Palette
+    blue = "#70a7bd"
+    teal = "#7bdcd0"
+    yellow = "#f3dfaf"
+    orange = "#f9cdaa"
+    darkOrange = "#f2b2a2"
+
+
+class showMediaFileListModel(QAbstractListModel):
+    """A model to show a list of MediaFiles. Initially to show the list of files that can be renamed, but can be also
+    used to show the proposed renamed files.
+
+    Args:
+        QAbstractListModel (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    class Filter(IntEnum):
+        dated = 1
+        dateless = 2
+        newName = 3
+
+    dated = Filter.dated
+    dateless = Filter.dateless
+    newName = Filter.newName
+
+    def __init__(self, mediaFileList: list[MediaFile] | None, type: Filter = dated):
+        super().__init__()
+        self.files: list[str] = []
+        self.type = type
+        if mediaFileList:
+            for mediaFile in mediaFileList:
+                if self.type == showMediaFileListModel.dated:
+                    if mediaFile.dateTime:
+                        self.files.append(str(mediaFile.fileName))
+                        # TODO: show sidecar
+                elif self.type == showMediaFileListModel.newName:
+                    # To make sure we get the same items that in the dated list, use the "has date"
+                    # condition (which makes sense, as it's the main condition to have a new name)
+                    if mediaFile.dateTime:
+                        self.files.append(str(mediaFile.newName))
+                        # TODO: show sidecar
+                elif self.type == showMediaFileListModel.dateless:
+                    if not mediaFile.dateTime:
+                        self.files.append(str(mediaFile.fileName))
+                else:
+                    raise ValueError("Wrong type of filter {type}")
+
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+        return len(self.files)
+
+    def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+        if role == Qt.ItemDataRole.DisplayRole and index.isValid():
+            return self.files[index.row()]
+        # TODO: if sidecar, change background colour
+        return None
+
+    def replaceListOfFiles(self, newMediaFileList: list[MediaFile]) -> None:
+        self.files = []
+        for mediaFile in newMediaFileList:
+            if self.type == showMediaFileListModel.dated:
+                if mediaFile.dateTime:
+                    self.files.append(str(mediaFile.fileName))
+            elif self.type == showMediaFileListModel.newName:
+                # To make sure we get the same items that in the dated list, use the "has date"
+                # condition (which makes sense, as it's the main condition to have a new name)
+                if mediaFile.dateTime:
+                    self.files.append(str(mediaFile.newName))
+            elif self.type == showMediaFileListModel.dateless:
+                if not mediaFile.dateTime:
+                    self.files.append(str(mediaFile.fileName))
+            else:
+                raise ValueError("Wrong type of filter {type}")
+        self.layoutChanged.emit()
+
+
 class showDatelessModel(QAbstractTableModel):
     """A model for the dateless items table
 
@@ -325,13 +406,6 @@ class fixDateModel(QAbstractTableModel):
         QAbstractTableModel (_type_): ???
     """
 
-    # Sunny Beach Day Palette
-    blue = "#70a7bd"
-    teal = "#7bdcd0"
-    yellow = "#f3dfaf"
-    orange = "#f9cdaa"
-    darkOrange = "#f2b2a2"
-
     def __init__(self, dateTagList: list[tuple[str, str]] | None = None) -> None:
         super().__init__()
         self.dateTagList = dateTagList or []
@@ -344,13 +418,13 @@ class fixDateModel(QAbstractTableModel):
         elif role == Qt.ItemDataRole.BackgroundRole:
             # Get some background colours to distinghuis tags?
             if self.dateTagList[index.row()][0].startswith("System"):
-                return QColor(self.darkOrange)
+                return QColor(SunnyBeach.darkOrange)
             if self.dateTagList[index.row()][0].startswith("Exif"):
-                return QColor(self.orange)
+                return QColor(SunnyBeach.orange)
             if self.dateTagList[index.row()][0].startswith("Inferred"):
-                return QColor(self.yellow)
+                return QColor(SunnyBeach.yellow)
             else:
-                return QColor(self.teal)
+                return QColor(SunnyBeach.teal)
         elif role == Qt.ItemDataRole.FontRole and index.column() == 1:
             myFont = QFont("Monospace")
             return myFont
@@ -411,9 +485,22 @@ class TagListModel(QAbstractListModel):
     def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return len(self.tags)
 
-    def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+    def data(
+        self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole
+    ) -> str | QColor | None:
         if role == Qt.ItemDataRole.DisplayRole and index.isValid():
             return self.tags[index.row()]
+        elif role == Qt.ItemDataRole.BackgroundRole:
+            # Get some background colours to distinguish tags?
+            if any(x in self.tags[index.row()].lower() for x in ["model", "make"]):
+                # Tags that have "make" or "model" on them
+                return QColor(SunnyBeach.darkOrange)
+            if any(x in self.tags[index.row()].lower() for x in ["software"]):
+                return QColor(SunnyBeach.orange)
+            if any(x in self.tags[index.row()].lower() for x in ["comment"]):
+                return QColor(SunnyBeach.yellow)
+            # else:
+            #     return QColor(SunnyBeach.teal)
         return None
 
     def replaceListOfTags(self, newMediaFileList: list[MediaFile]) -> None:
@@ -426,7 +513,7 @@ class ValueListModel(QAbstractListModel):
         super().__init__()
         self.values: list[str] = []
         if mediaFileList:
-            self.values = sorted({mf.EXIFTags.get(tag) for mf in mediaFileList if tag in mf.EXIFTags})
+            self.values = sorted({mf.EXIFTags.get(tag) for mf in mediaFileList if tag in mf.EXIFTags})  # pyright: ignore[reportArgumentType]
 
     def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return len(self.values)
@@ -437,7 +524,7 @@ class ValueListModel(QAbstractListModel):
         return None
 
     def replaceListOfValues(self, newMediaFileList: list[MediaFile], newTag: str) -> None:
-        self.values = sorted({mf.EXIFTags.get(newTag) for mf in newMediaFileList if newTag in mf.EXIFTags})
+        self.values = sorted({mf.EXIFTags.get(newTag) for mf in newMediaFileList if newTag in mf.EXIFTags})  # pyright: ignore[reportArgumentType]
         self.layoutChanged.emit()
 
 

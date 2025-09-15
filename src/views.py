@@ -8,7 +8,7 @@ from collections import deque
 
 
 from PySide6.QtWidgets import QWidget, QFileDialog, QDialog, QListWidgetItem, QHeaderView
-from PySide6.QtCore import Slot, QProcess, Qt, QModelIndex, QPersistentModelIndex
+from PySide6.QtCore import Slot, QProcess, Qt, QModelIndex
 from PySide6.QtGui import QPixmap
 
 from ui.mainWindow import Ui_MainWindow
@@ -23,7 +23,15 @@ from massRenamer.massRenamerClasses import (
     loadExifToolTagsFromFile,
     storeMediaFileListTags,
 )
-from models import fixDateModel, isTagATimeTag, showDatelessModel, FileListModel, ValueListModel, TagListModel
+from models import (
+    fixDateModel,
+    isTagATimeTag,
+    showDatelessModel,
+    FileListModel,
+    ValueListModel,
+    TagListModel,
+    showMediaFileListModel,
+)
 from customLogger import configConsoleHandler, emojiFormatter
 
 logger = getLogger(__name__)
@@ -67,15 +75,29 @@ class Window(QWidget, Ui_MainWindow):
         self.selectedDates: dict[str, str] = {}
 
         ### UI stuff
-        # Open file/folder
+        ## Open file/folder
         self.openFolderBtn.clicked.connect(self.loadFolder)
         self.openJSONBtn.clicked.connect(self.loadExifTagsFromJSON)
-        # Rename files Tab
-        self.mediaFileViewerBtn.clicked.connect(self.showMediaFileViewer)
-        self.toRenameList.itemClicked.connect(self.updateMediaFileViewer)
+        # Media Preview Window
         self.mediaFileViewer = MediaFileViewer(self)
+        ## Rename files Tab
+        # This list shows the files about to be renamed
+        self.toRenameModel = showMediaFileListModel(None, showMediaFileListModel.dated)
+        self.toRenameList.setModel(self.toRenameModel)
+        # and next to them, a list with the proposed new name
+        self.namePreviewModel = showMediaFileListModel(None, showMediaFileListModel.newName)
+        self.namePreviewList.setModel(self.namePreviewModel)
+        # Actions
+        # Clicking on an item in the Files to Rename list updates the contents of the mini media file viewer
+        # self.toRenameList.itemClicked.connect(self.updateMediaFileViewer) TODO: FIXME:
+        # This button shows the mini media file viewer
+        self.mediaFileViewerBtn.clicked.connect(self.showMediaFileViewer)
+        # This button refreshes the view (TODO: probably not needed?)
         self.refreshFilesToRenameBtn.clicked.connect(self.loadJSON)
-        # Fix Dates Tab
+        # This button triggers the renaming of the files
+        # self.renameBtn.clicked.connect(self.renameFiles) TODO: FIXME:
+
+        ## Fix Dates Tab
         # toFixDates Table: shows the filenames of the files that don't have dates, and the currently selected date for
         # that file, if one has already been chosen
         self.showDatelessModel = showDatelessModel()
@@ -90,7 +112,8 @@ class Window(QWidget, Ui_MainWindow):
         self.datesTableView.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.datesTableView.clicked.connect(self.dateSelected)
         self.setDateBtn.clicked.connect(self.assignNewDates)
-        # The Tag Explorer
+
+        ## The Tag Explorer
         # Models
         self.tagModel = TagListModel(None)
         self.valueModel = ValueListModel(None, "")
@@ -130,7 +153,7 @@ class Window(QWidget, Ui_MainWindow):
 
         # Let's select a folder and process its files
 
-        self.toRenameList.clear()  # clear the files to rename list on button click
+        # self.toRenameList.clear()  # clear the files to rename list on button click
         self.currJSONTxt.clear()  # clear the any current JSON
         # If the currDirTxt lineEdit has text on it, use it as reference for the file dialog. Otherwise, use home() as
         # starting point
@@ -206,19 +229,14 @@ class Window(QWidget, Ui_MainWindow):
 
         self.mediaFileList = generateSortedMediaFileList(tagsDictList)
 
-        self.toRenameList.clear()
-        datelessFiles: list[tuple[str, str]] = []
-        for item in self.mediaFileList:
-            if item.dateTime is not None:
-                # if the item has a date, send it to the "toRename" list
-                self.toRenameList.addItem(str(item.fileName))
-            else:
-                # if it doesn't, send it to the dateless files list
-                # Add an item to the dict with the name of the file as key, and an "empty" date for now
-                datelessFiles.append((str(item.fileName), ""))
+        # self.toRenameList.clear()
+        # self.namePreviewList.clear()
+        self.toRenameModel.replaceListOfFiles(self.mediaFileList)
+        self.namePreviewModel.replaceListOfFiles(self.mediaFileList)
 
-        # Find Dateless, try to correct them by hand. Get the actual instance that doesn't have a date and its index in
-        # the list of MediaFile, as it will be handy later
+        # Find Dateless, infer their date from neighbours.
+        # Build a list of dateless items with their index in the mediaFileListGet, then get their left and right
+        # inference and store in the tags section of the mediaFileList using the index
         dateless: list[tuple[int, MediaFile]] = [
             (index, instance) for index, instance in enumerate(self.mediaFileList) if instance.dateTime is None
         ]
@@ -231,6 +249,12 @@ class Window(QWidget, Ui_MainWindow):
                 if inferredDates[1]:
                     self.mediaFileList[datelessItem[0]].EXIFTags["Inferred:RightDate"] = inferredDates[1]
 
+        # Now update the dateless View. I guess I could do something smart to use the previous list for this too, but
+        # it takes microseconds to get a new list. This time of tupes of filenames of dateless items, and empty strings
+        # that will contain the selected proposed new date for the item, which will be filled through the UI
+        datelessFiles: list[tuple[str, str]] = [
+            (str(item.fileName), "") for item in self.mediaFileList if not item.dateTime
+        ]
         self.showDatelessModel.replaceListOfFiles(datelessFiles)
 
         # Load the tags in the tag explorer
@@ -248,10 +272,6 @@ class Window(QWidget, Ui_MainWindow):
         Action for the selection of a JSON file dialog.
         """
 
-        # Because we are "starting the process", clean the state
-        self.toRenameList.clear()
-        self.namePreviewList.clear()
-        # FIXME: self.toFixDatesTableView.clear()
         self.selectedDates = {}
 
         # If the current directory field has something on it, use it as starting point for looking for a JSON
@@ -510,7 +530,7 @@ class Window(QWidget, Ui_MainWindow):
     @Slot()
     def onTagSelected(self, index: QModelIndex):
         tag = self.tagModel.data(index, Qt.ItemDataRole.DisplayRole)
-        if tag:
+        if tag and isinstance(tag, str):
             self.valueModel.replaceListOfValues(self.mediaFileList, tag)
             # Reset file view
             if self.valueModel.values:
@@ -523,7 +543,7 @@ class Window(QWidget, Ui_MainWindow):
         tag_index = self.tagView.currentIndex()
         tag = self.tagModel.data(tag_index, Qt.ItemDataRole.DisplayRole)
         value = self.valueModel.data(index, Qt.ItemDataRole.DisplayRole)
-        if tag and value:
+        if tag and value and isinstance(tag, str):
             self.fileModel.replaceListOfFiles(self.mediaFileList, tag, value)
 
 
