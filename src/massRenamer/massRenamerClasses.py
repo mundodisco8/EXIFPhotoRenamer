@@ -52,11 +52,6 @@ from whenever import OffsetDateTime, PlainDateTime, TimeDelta, ZonedDateTime
 
 module_logger = getLogger(__name__)
 
-# Filename for the JSON file to use
-
-# Filename to use the metadata obtained from the ExifTool batch processing
-etJSON: Path = Path("etJSON.json")
-objectFile: Path = Path("MediaFileList.txt")
 
 # list of image extensions:
 IMAGE_EXTENSIONS: list[str] = [".jpeg", ".jpg", ".png", ".heic"]
@@ -102,129 +97,6 @@ GPSTagsList: list[str] = [
     "GPSLongitudeRef",
     "GPSLongitude",
 ]
-
-
-# NOTE: Tested
-def findCreationTime(exifToolData: dict[str, str]) -> str | None:
-    """
-    Returns the Creation Time and Date (in the local time) of creation of a file
-    with EXIF data and the time offset respect UTC, extracted from the metadata returned by
-    ExifTool for that file, which is a list of attributes.
-    If the file has no sources for a valid UTC offset, we will consider the dates UTC.
-
-    From https://photo.stackexchange.com/questions/69959/
-        DateTimeOriginal: best tag to use
-        CreateDate: should be the same as DateTimeOriginal. Could be different if you are "scanning" a paper photo,
-        where CreateDate is the date of the Scan, and DateTimeOriginal should be the date the photo was taken.
-
-    Args:
-        exifToolData: a dict with the metadata to extract, as provided by
-            ExifTool
-        tagsToChec (list of str): a list of tags to check for dates. They vary depending
-            on the type of content
-
-    Returns:
-        date: a string with the creation date, time and offset of a file or an empty
-        string if there is no valid date tags in the dictionary.
-    """
-
-    # We are asking EXIFTool to return the dates in `YYYY-MM-DDThh:mm:ss⨦oo:00` format. If the tag has offset info,
-    # then obviously the offset is correct, but sometimes it returns +00:00 and then you have to check the presence of
-    # offset tags.
-    # From ExifTool (https://exiftool.org/TagNames/EXIF.html)
-    #
-    # 0x9003    DateTimeOriginal        string  ExifIFD     (date/time when original image was taken)
-    # 0x9004    CreateDate              string  ExifIFD     (called DateTimeDigitized by the EXIF spec.)
-    # 0x9010    OffsetTime              string  ExifIFD     (time zone for ModifyDate)
-    # 0x9011    OffsetTimeOriginal      string  ExifIFD     (time zone for DateTimeOriginal)
-    # 0x9012    OffsetTimeDigitized     string  ExifIFD     (time zone for CreateDate)
-
-    # Loop through the dateTagsToCheck tags. They are sorted by preference. As soon as we have one, we can take that one
-    # as the date and break
-    date: ZonedDateTime | OffsetDateTime | PlainDateTime | None = None
-    for tag in dateTagsToCheck:
-        if tag in exifToolData:
-            # Ideally, we got a date in the format YYYY-MM-DDThh:mm:ss±OO:OO, that we can parse as OffsetDateTime
-            try:
-                date = OffsetDateTime.parse_common_iso(exifToolData[tag])
-            except ValueError:
-                # But it might not have offset, so try as PlainDateTime
-                try:
-                    date = PlainDateTime.parse_common_iso(exifToolData[tag]).assume_fixed_offset(0)
-                except ValueError:
-                    # At least in Quicktime tags, instead of deleting the tags, they are set to "0000:00:00 00:00:00"
-                    # which I think fails as that is not a "date" (whenever only accepts 1-1-1 first date)
-                    if exifToolData[tag] == "0000:00:00 00:00:00":
-                        # I could delete the tag, but I don't have access to the source, just a copy of it
-                        pass
-                    else:
-                        raise
-
-            if not date:
-                break
-            # At this point, we have a date with an offset, or the date didn't have offset and we assumed UTC.
-            # Nevertheless, if there are GPS tags, we can get the timezone from it (more precise) or there might be
-            # offset tags to check too. We'll give preference to the GPS as it's absolute (the offset tag requires
-            # having set the time and date correctly, obviously)
-            if (
-                "GPS:GPSLatitudeRef" in exifToolData.keys()
-                and "GPS:GPSLatitude" in exifToolData.keys()
-                and "GPS:GPSLongitudeRef" in exifToolData.keys()
-                and "GPS:GPSLongitude" in exifToolData.keys()
-            ):
-                # Latitude and longitude follow the "GGG deg MM' SS.00"" format, we have a regexp to capture the numbers
-                longMatch = match(GPSCoordsRegEx, exifToolData["GPS:GPSLongitude"])
-                latMatch = match(GPSCoordsRegEx, exifToolData["GPS:GPSLatitude"])
-                longitude: float | None = None
-                latitude: float | None = None
-                if longMatch:
-                    # Got degrees, minutes and seconds in match groups 1, 2 and 3
-                    longitude = (
-                        int(longMatch.group(1)) + (int(longMatch.group(2)) / 60) + (float(longMatch.group(3)) / 3600)
-                    )
-                    if exifToolData["GPS:GPSLongitudeRef"] == "West":
-                        # If coordinates are South, then they are negative
-                        longitude *= -1
-                if latMatch:
-                    latitude = (
-                        int(latMatch.group(1)) + (int(latMatch.group(2)) / 60) + (float(latMatch.group(3)) / 3600)
-                    )
-                    if exifToolData["GPS:GPSLatitudeRef"] == "South":
-                        # If coordinates are West, then they are negative
-                        latitude *= -1
-
-                if longitude and latitude:
-                    myTZ = get_tz(longitude, latitude)
-                    # Type dance: convert to plain (to get rid of whatever offset it had), assume it belongs to tz, so
-                    # we have a time with the same "value" but on a different tz, and then to fixed offset (as we
-                    # can't store the timezone string in the tags)
-                    date = date.to_tz(myTZ).to_fixed_offset()
-            else:
-                # No GPS location, try offsets
-                if tag in offsetDict.keys() and offsetDict[tag] in exifToolData.keys():
-                    offsetStr = exifToolData[offsetDict[tag]]
-                    if len(offsetStr) != 6:
-                        # Offset has to be ±HH:MM
-                        raise ValueError(f"Offset ({offsetStr}) is the wrong length")
-                    offsetSign = offsetStr[0]  # + or -
-                    offsetHours = offsetStr[1:3]  # HH
-                    offsetMin = offsetStr[4:]  # skip : and get MM
-
-                    # "Delete" the current offset by considering the date a plain date, and then create a new fixed offset
-                    # By passing the offset as a "TimeDelta" we can pass "fractional" offsets (01:30). To get a negative
-                    # offset, we have to pass "negative" hours and "negative" minutes (otherwise they cancel each other
-                    # out: -2h and +30 minutes is -01:30)
-                    offsetTimeDelta = TimeDelta(
-                        hours=int(offsetSign + offsetHours), minutes=int(offsetSign + offsetMin)
-                    )
-                    # Type dance: convert to plain (to get rid of whatever offset it had), assume it has a certain fixed
-                    # offset, so we have a time with the same "value" but on a different offset.
-                    date = date.to_plain().assume_fixed_offset(offsetTimeDelta)
-            break
-
-    if date:
-        return date.format_common_iso()
-    return None
 
 
 class MediaFile:
@@ -790,7 +662,44 @@ def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: list[MediaFile]) 
 # ### STEP 2 Process Data and Extract
 
 
-# def massRenamer(
+def findNewNames(mediaFileList: list[MediaFile], parentFolder: Path) -> None:
+    # Create a list of available sources
+    availableSources = set([instance.source for instance in mediaFileList])
+
+    for source in availableSources:
+        # Date Histogram:
+        # Find how many entries share the same date. We want to know this to figure out how many zeroes the file index will
+        # have, so they are naturally sorted in the file explorer
+        dateHistogram: dict[str, int] = Counter(
+            OffsetDateTime.parse_common_iso(instance.dateTime).date().format_common_iso()
+            for instance in mediaFileList
+            if instance.source == source and instance.dateTime
+        )
+
+        # And to keep track of our progress, a dict with the same keys, but their values set to 0, and we will increase
+        # them as we assign values to them
+        dateHistogramLoop: dict[str, int] = dict.fromkeys(dateHistogram, 0)
+
+        for mediaFile in mediaFileList:
+            if mediaFile.source == source and mediaFile.dateTime:
+                onlyDate: str = OffsetDateTime.parse_common_iso(mediaFile.dateTime).date().format_common_iso()
+                # Name is "Date" + "Source" + "Number of file in that date" + "same file suffix"
+                numberOfZeroes = len(str(dateHistogram[onlyDate]))
+                dateHistogramLoop[onlyDate] += 1
+                mediaFile.newName = Path(
+                    parentFolder,
+                    source
+                    + "/"
+                    + onlyDate
+                    + " "
+                    + mediaFile.source
+                    + " "
+                    + f"{dateHistogramLoop[onlyDate]:>0{numberOfZeroes}}"
+                    + mediaFile.fileName.suffix,
+                )
+
+
+# def findNewNames(
 #     mediaFileList: list[MediaFile],
 #     photosDir: Path,
 #     isDryRun: bool = False,
@@ -838,9 +747,7 @@ def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: list[MediaFile]) 
 #             / f"{dateStr.replace(':', '-')} - {namePattern} {counter:>0{numberOfZeroes}}{currentFile.suffix}"
 #         )
 
-#         if not renamedFile.parent.is_dir():
-#             module_logger.debug(f"Creating {renamedFile.parent} folder")
-#             renamedFile.parent.mkdir(parents=True, exist_ok=True)
+
 #         # Check if the file has a sidecar. They have the same filename than their parent file
 #         # with .aae extension, but sometimes they have an 'O' at the end of the name ¯\_(ツ)_/¯
 #         sidecarPath: Path = Path()

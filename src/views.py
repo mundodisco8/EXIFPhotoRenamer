@@ -17,6 +17,7 @@ from massRenamer.massRenamerClasses import (
     IMAGE_EXTENSIONS,
     VIDEO_EXTENSIONS,
     MediaFile,
+    findNewNames,
     generateSortedMediaFileList,
     getFilesInFolder,
     inferDateFromNeighbours,
@@ -229,6 +230,8 @@ class Window(QWidget, Ui_MainWindow):
 
         self.mediaFileList = generateSortedMediaFileList(tagsDictList)
 
+        findNewNames(self.mediaFileList, Path(self.currDirTxt.text()))
+
         # self.toRenameList.clear()
         # self.namePreviewList.clear()
         self.toRenameModel.replaceListOfFiles(self.mediaFileList)
@@ -281,11 +284,12 @@ class Window(QWidget, Ui_MainWindow):
             # initDir = str(Path.home())  # default to the user's home
             initDir = r"C:\Users\mundo\OneDrive\Desktop\EXIFPhotoRenamer\FotosTest\A"
         self._jsonFile, _ = QFileDialog.getOpenFileName(self, "Pick a JSON file with your EXIF tags", initDir, "*.json")
-        self.currJSONTxt.setText(self._jsonFile)
-        # Clear it after the JSON was selected, to avoid ambiguity about what is open
-        self.currDirTxt.clear()
-        # Create a list of MediaFile instances
-        self.loadJSON()
+        if self._jsonFile:
+            self.currJSONTxt.setText(self._jsonFile)
+            # Clear it after the JSON was selected, to avoid ambiguity about what is open
+            self.currDirTxt.setText(str(Path(self._jsonFile).parent))
+            # Create a list of MediaFile instances
+            self.loadJSON()
 
     @Slot()
     def showMediaFileViewer(self) -> None:
