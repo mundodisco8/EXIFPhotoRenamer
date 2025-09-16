@@ -1,5 +1,6 @@
 """This module provides the RP Renamer main window."""
 
+from doctest import debug
 from enum import IntEnum
 from pathlib import Path
 from json import loads
@@ -90,13 +91,13 @@ class Window(QWidget, Ui_MainWindow):
         self.namePreviewList.setModel(self.namePreviewModel)
         # Actions
         # Clicking on an item in the Files to Rename list updates the contents of the mini media file viewer
-        # self.toRenameList.itemClicked.connect(self.updateMediaFileViewer) TODO: FIXME:
+        self.toRenameList.clicked.connect(self.updateMediaFileViewer)
         # This button shows the mini media file viewer
         self.mediaFileViewerBtn.clicked.connect(self.showMediaFileViewer)
         # This button refreshes the view (TODO: probably not needed?)
         self.refreshFilesToRenameBtn.clicked.connect(self.loadJSON)
         # This button triggers the renaming of the files
-        # self.renameBtn.clicked.connect(self.renameFiles) TODO: FIXME:
+        self.renameBtn.clicked.connect(self.renameFiles)
 
         ## Fix Dates Tab
         # toFixDates Table: shows the filenames of the files that don't have dates, and the currently selected date for
@@ -143,6 +144,8 @@ class Window(QWidget, Ui_MainWindow):
         """_summary_"""
         currVal = self.progressBar.value()
         self.progressBar.setValue(currVal + 1)
+
+    ### Open Files / Folder
 
     @Slot()
     def loadFolder(self) -> None:
@@ -232,8 +235,6 @@ class Window(QWidget, Ui_MainWindow):
 
         findNewNames(self.mediaFileList, Path(self.currDirTxt.text()))
 
-        # self.toRenameList.clear()
-        # self.namePreviewList.clear()
         self.toRenameModel.replaceListOfFiles(self.mediaFileList)
         self.namePreviewModel.replaceListOfFiles(self.mediaFileList)
 
@@ -291,6 +292,24 @@ class Window(QWidget, Ui_MainWindow):
             # Create a list of MediaFile instances
             self.loadJSON()
 
+    ### Rename
+
+    @Slot()
+    def renameFiles(self) -> None:
+        for mediaFile in self.mediaFileList:
+            if mediaFile.newName:
+                if self.dryRunChkBox.checkState():
+                    logger.info(f"{mediaFile.fileName} -> {mediaFile.newName}")
+                    if mediaFile.sidecar:
+                        logger.warning(f"{mediaFile.sidecar} -> {mediaFile.newName.with_suffix('.aae')}")
+                else:
+                    mediaFile.fileName.rename(mediaFile.newName)
+                    if mediaFile.sidecar:
+                        mediaFile.sidecar.rename(mediaFile.newName.with_suffix(".aae"))
+                    pass
+
+    ### Media File Viewer
+
     @Slot()
     def showMediaFileViewer(self) -> None:
         """Shows the MediaFile Viewer"""
@@ -320,6 +339,8 @@ class Window(QWidget, Ui_MainWindow):
 
         if instance:
             self._updateMediaFileViewerFromInstance(instance)
+
+    ### Fix Dates
 
     @Slot()
     def updateListOfDates(self) -> None:
@@ -530,6 +551,8 @@ class Window(QWidget, Ui_MainWindow):
     @Slot()
     def handleError(self, error: QProcess.ProcessError) -> None:
         logger.info(error)
+
+    ### Tag Explorer
 
     @Slot()
     def onTagSelected(self, index: QModelIndex):

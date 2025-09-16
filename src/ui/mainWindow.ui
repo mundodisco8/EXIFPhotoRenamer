@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>EXIF Renamer</string>
   </property>
-  <widget class="QWidget" name="layoutWidget">
+  <widget class="QWidget" name="progLayoutWidget">
    <property name="geometry">
     <rect>
      <x>80</x>
@@ -84,6 +84,24 @@ QProgressBar {
        <property name="verticalSpacing">
         <number>0</number>
        </property>
+       <item row="2" column="1">
+        <widget class="QListView" name="namePreviewList"/>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLabel" name="label_3">
+         <property name="font">
+          <font>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Name Preview</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QListView" name="toRenameList"/>
+       </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label_2">
          <property name="font">
@@ -95,16 +113,6 @@ QProgressBar {
           <string>Files To Rename</string>
          </property>
         </widget>
-       </item>
-       <item row="3" column="1">
-        <widget class="QPushButton" name="renameBtn">
-         <property name="text">
-          <string>Rename</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0">
-        <widget class="QListView" name="toRenameList"/>
        </item>
        <item row="1" column="0">
         <widget class="QPushButton" name="refreshFilesToRenameBtn">
@@ -119,20 +127,23 @@ QProgressBar {
          </property>
         </widget>
        </item>
-       <item row="0" column="1">
-        <widget class="QLabel" name="label_3">
-         <property name="font">
-          <font>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Name Preview</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="1">
-        <widget class="QListView" name="namePreviewList"/>
+       <item row="3" column="1">
+        <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="80,20">
+         <item>
+          <widget class="QPushButton" name="renameBtn">
+           <property name="text">
+            <string>Rename</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="dryRunChkBox">
+           <property name="text">
+            <string>Dry Run</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </item>
@@ -142,7 +153,7 @@ QProgressBar {
     <attribute name="title">
      <string>Fix Dates</string>
     </attribute>
-    <widget class="QWidget" name="layoutWidget">
+    <widget class="QWidget" name="dateLayoutWidget">
      <property name="geometry">
       <rect>
        <x>11</x>
