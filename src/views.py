@@ -1,6 +1,8 @@
 """This module provides the RP Renamer main window."""
 
-from doctest import debug
+# TODO: Add Tags to media viewer
+# TODO: format JSON?
+
 from enum import IntEnum
 from pathlib import Path
 from json import loads
@@ -11,6 +13,9 @@ from collections import deque
 from PySide6.QtWidgets import QWidget, QFileDialog, QDialog, QListWidgetItem, QHeaderView
 from PySide6.QtCore import Slot, QProcess, Qt, QModelIndex
 from PySide6.QtGui import QPixmap
+from PIL import Image
+from PIL.ImageQt import ImageQt
+from pillow_heif import register_heif_opener
 
 from ui.mainWindow import Ui_MainWindow
 from ui.mediaFileViewer import Ui_MediaFileViewer
@@ -26,13 +31,13 @@ from massRenamer.massRenamerClasses import (
     storeMediaFileListTags,
 )
 from models import (
+    toRenameModel,
+    showDatelessModel,
     fixDateModel,
     isTagATimeTag,
-    showDatelessModel,
-    FileListModel,
-    ValueListModel,
     TagListModel,
-    showMediaFileListModel,
+    ValueListModel,
+    FileListModel,
 )
 from customLogger import configConsoleHandler, emojiFormatter
 
@@ -84,14 +89,14 @@ class Window(QWidget, Ui_MainWindow):
         self.mediaFileViewer = MediaFileViewer(self)
         ## Rename files Tab
         # This list shows the files about to be renamed
-        self.toRenameModel = showMediaFileListModel(None, showMediaFileListModel.dated)
-        self.toRenameList.setModel(self.toRenameModel)
-        # and next to them, a list with the proposed new name
-        self.namePreviewModel = showMediaFileListModel(None, showMediaFileListModel.newName)
-        self.namePreviewList.setModel(self.namePreviewModel)
+        self.toRenameModel = toRenameModel()
+        self.toRenamePreviewTable.setModel(self.toRenameModel)
+        self.toRenamePreviewTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.toRenamePreviewTable.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+
         # Actions
         # Clicking on an item in the Files to Rename list updates the contents of the mini media file viewer
-        self.toRenameList.clicked.connect(self.updateMediaFileViewer)
+        self.toRenamePreviewTable.clicked.connect(self.updateMediaFileViewer)
         # This button shows the mini media file viewer
         self.mediaFileViewerBtn.clicked.connect(self.showMediaFileViewer)
         # This button refreshes the view (TODO: probably not needed?)
@@ -127,6 +132,7 @@ class Window(QWidget, Ui_MainWindow):
         # Signals
         self.tagView.clicked.connect(self.onTagSelected)
         self.valueView.clicked.connect(self.onValueSelected)
+        self.fileView.clicked.connect(self.updateMediaFileViewer)
 
         ### Non-UI Stuff
         # Get root logger and set the emojiFormatter
@@ -235,8 +241,11 @@ class Window(QWidget, Ui_MainWindow):
 
         findNewNames(self.mediaFileList, Path(self.currDirTxt.text()))
 
-        self.toRenameModel.replaceListOfFiles(self.mediaFileList)
-        self.namePreviewModel.replaceListOfFiles(self.mediaFileList)
+        renameTable: list[tuple[str, str]] = []
+        for instance in self.mediaFileList:
+            if instance.newName:
+                renameTable.append((str(instance.fileName), str(instance.newName)))
+        self.toRenameModel.replaceListOfFiles(renameTable)
 
         # Find Dateless, infer their date from neighbours.
         # Build a list of dateless items with their index in the mediaFileListGet, then get their left and right
@@ -324,19 +333,40 @@ class Window(QWidget, Ui_MainWindow):
         self.mediaFileViewer.dateTimeTxt.setText(mediaFile.dateTime)
         self.mediaFileViewer.sidecarTxt.setText(str(mediaFile.sidecar))
         self.mediaFileViewer.sourceTxt.setText(mediaFile.source)
-        pixMap = QPixmap(mediaFile.fileName).scaled(
-            self.mediaFileViewer.imageLbl.size(), Qt.AspectRatioMode.KeepAspectRatio
-        )
-        self.mediaFileViewer.imageLbl.setPixmap(pixMap)
+        ext = mediaFile.fileName.suffix
+        pixMap: QPixmap | None = None
+        if ext.lower() in [".jpg", "jpeg", ".png", ".tiff", ".gif"]:
+            pixMap = QPixmap(mediaFile.fileName)
+        elif ext.lower() in [".heif", ".heic"]:
+            register_heif_opener()
+            image = Image.open(mediaFile.fileName)
+            qim = ImageQt(image)
+            pixMap = QPixmap.fromImage(qim)
+
+        if pixMap:
+            # Set the pixMap in the label, and scale while keepint the AspectRatio
+            self.mediaFileViewer.imageLbl.setPixmap(
+                pixMap.scaled(self.mediaFileViewer.imageLbl.size(), Qt.AspectRatioMode.KeepAspectRatio)
+            )
 
     @Slot(QListWidgetItem)
-    def updateMediaFileViewer(self, current: QListWidgetItem) -> None:
-        # Find an instance of MediaFile that as its filename the text in the currently selected cell of the toRename
-        # list
-        instance: MediaFile | None = next(
-            filter(lambda instance: instance.fileName == Path(current.text()), self.mediaFileList), None
-        )
+    def updateMediaFileViewer(self, current: QModelIndex) -> None:
+        """Updates the info on the MediaFile viewer dialog with the item  of the table we just clikced on
 
+        Args:
+            current (QModelIndex): the item we clicked on
+        """
+
+        # Get the name of the item clicked. If we clicked on the filename, the value is in current.data(), but if we
+        # clicked in the rename file, the we would get that. So instead, get the row, and get whatever is there at
+        # column 0 (filename)
+        row = current.row()  # get row clicked
+        currFile = str(current.sibling(row, 0).data())  # get item in col 0 of that row, file Name
+        instance: MediaFile | None = next(
+            filter(lambda instance: instance.fileName == Path(currFile), self.mediaFileList), None
+        )  # get the MediaFile that has currFile as its fileName
+
+        # If found, update the panel
         if instance:
             self._updateMediaFileViewerFromInstance(instance)
 

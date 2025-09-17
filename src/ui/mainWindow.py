@@ -73,38 +73,20 @@ class Ui_MainWindow(object):
         self.gridLayout.setObjectName(u"gridLayout")
         self.gridLayout.setHorizontalSpacing(50)
         self.gridLayout.setVerticalSpacing(0)
-        self.namePreviewList = QListView(self.Rename)
-        self.namePreviewList.setObjectName(u"namePreviewList")
-
-        self.gridLayout.addWidget(self.namePreviewList, 2, 1, 1, 1)
-
-        self.label_3 = QLabel(self.Rename)
-        self.label_3.setObjectName(u"label_3")
-        font = QFont()
-        font.setBold(True)
-        self.label_3.setFont(font)
-
-        self.gridLayout.addWidget(self.label_3, 0, 1, 1, 1)
-
-        self.toRenameList = QListView(self.Rename)
-        self.toRenameList.setObjectName(u"toRenameList")
-
-        self.gridLayout.addWidget(self.toRenameList, 2, 0, 1, 1)
-
         self.label_2 = QLabel(self.Rename)
         self.label_2.setObjectName(u"label_2")
+        font = QFont()
+        font.setBold(True)
         self.label_2.setFont(font)
 
-        self.gridLayout.addWidget(self.label_2, 0, 0, 1, 1)
-
-        self.refreshFilesToRenameBtn = QPushButton(self.Rename)
-        self.refreshFilesToRenameBtn.setObjectName(u"refreshFilesToRenameBtn")
-        self.refreshFilesToRenameBtn.setMinimumSize(QSize(130, 0))
-
-        self.gridLayout.addWidget(self.refreshFilesToRenameBtn, 1, 0, 1, 1)
+        self.gridLayout.addWidget(self.label_2, 0, 1, 1, 1)
 
         self.horizontalLayout_5 = QHBoxLayout()
         self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_5.addItem(self.horizontalSpacer)
+
         self.renameBtn = QPushButton(self.Rename)
         self.renameBtn.setObjectName(u"renameBtn")
 
@@ -116,9 +98,21 @@ class Ui_MainWindow(object):
         self.horizontalLayout_5.addWidget(self.dryRunChkBox)
 
         self.horizontalLayout_5.setStretch(0, 80)
-        self.horizontalLayout_5.setStretch(1, 20)
+        self.horizontalLayout_5.setStretch(1, 15)
+        self.horizontalLayout_5.setStretch(2, 5)
 
         self.gridLayout.addLayout(self.horizontalLayout_5, 3, 1, 1, 1)
+
+        self.refreshFilesToRenameBtn = QPushButton(self.Rename)
+        self.refreshFilesToRenameBtn.setObjectName(u"refreshFilesToRenameBtn")
+        self.refreshFilesToRenameBtn.setMinimumSize(QSize(130, 0))
+
+        self.gridLayout.addWidget(self.refreshFilesToRenameBtn, 1, 1, 1, 1)
+
+        self.toRenamePreviewTable = QTableView(self.Rename)
+        self.toRenamePreviewTable.setObjectName(u"toRenamePreviewTable")
+
+        self.gridLayout.addWidget(self.toRenamePreviewTable, 2, 1, 1, 1)
 
 
         self.verticalLayout_2.addLayout(self.gridLayout)
@@ -311,11 +305,10 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"EXIF Renamer", None))
         self.progressBarTxt.setText("")
-        self.label_3.setText(QCoreApplication.translate("MainWindow", u"Name Preview", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Files To Rename", None))
-        self.refreshFilesToRenameBtn.setText(QCoreApplication.translate("MainWindow", u"Refresh Files To Rename", None))
         self.renameBtn.setText(QCoreApplication.translate("MainWindow", u"Rename", None))
         self.dryRunChkBox.setText(QCoreApplication.translate("MainWindow", u"Dry Run", None))
+        self.refreshFilesToRenameBtn.setText(QCoreApplication.translate("MainWindow", u"Refresh Files To Rename", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Rename), QCoreApplication.translate("MainWindow", u"Rename Files", None))
         self.setDateBtn.setText(QCoreApplication.translate("MainWindow", u"Update Dates On Files", None))
         self.label_5.setText(QCoreApplication.translate("MainWindow", u"Files Without a Clear Date", None))

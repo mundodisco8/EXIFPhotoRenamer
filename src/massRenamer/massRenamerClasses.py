@@ -280,20 +280,25 @@ class MediaFile:
                     # No GPS location, try offsets
                     if tag in offsetDict.keys() and offsetDict[tag] in exifToolData.keys():
                         offsetStr = exifToolData[offsetDict[tag]]
-                        if len(offsetStr) != 6:
-                            # Offset has to be ±HH:MM
-                            raise ValueError(f"Offset ({offsetStr}) is the wrong length")
-                        offsetSign = offsetStr[0]  # + or -
-                        offsetHours = offsetStr[1:3]  # HH
-                        offsetMin = offsetStr[4:]  # skip : and get MM
+                        if len(offsetStr) == 6:
+                            offsetSign = offsetStr[0]  # + or -
+                            offsetHours = offsetStr[1:3]  # HH
+                            offsetMin = offsetStr[4:]  # skip : and get MM
 
-                        # "Delete" the current offset by considering the date a plain date, and then create a new fixed offset
-                        # By passing the offset as a "TimeDelta" we can pass "fractional" offsets (01:30). To get a negative
-                        # offset, we have to pass "negative" hours and "negative" minutes (otherwise they cancel each other
-                        # out: -2h and +30 minutes is -01:30)
-                        offsetTimeDelta = TimeDelta(
-                            hours=int(offsetSign + offsetHours), minutes=int(offsetSign + offsetMin)
-                        )
+                            # "Delete" the current offset by considering the date a plain date, and then create a new fixed offset
+                            # By passing the offset as a "TimeDelta" we can pass "fractional" offsets (01:30). To get a negative
+                            # offset, we have to pass "negative" hours and "negative" minutes (otherwise they cancel each other
+                            # out: -2h and +30 minutes is -01:30)
+                            offsetTimeDelta = TimeDelta(
+                                hours=int(offsetSign + offsetHours), minutes=int(offsetSign + offsetMin)
+                            )
+                        elif offsetStr == "Z":
+                            offsetTimeDelta = TimeDelta(hours=0)
+                        else:
+                            # Offset has to be ±HH:MM or 'Z'
+                            raise ValueError(
+                                f"In {offsetDict['SourceFile']}: Offset ('{offsetStr}') is the wrong length"
+                            )
                         # Type dance: convert to plain (to get rid of whatever offset it had), assume it has a certain fixed
                         # offset, so we have a time with the same "value" but on a different offset.
                         date = date.to_plain().assume_fixed_offset(offsetTimeDelta)
@@ -342,6 +347,8 @@ class MediaFile:
             elif make.lower() == "olympus imaging corp.":
                 # That's just too long
                 return "Olympus " + model
+            elif make.lower() == "fujifilm":
+                return "Fuji " + model
             else:
                 return make + " " + model
 

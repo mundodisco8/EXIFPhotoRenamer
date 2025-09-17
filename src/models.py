@@ -364,6 +364,47 @@ class showMediaFileListModel(QAbstractListModel):
         self.layoutChanged.emit()
 
 
+class toRenameModel(QAbstractTableModel):
+    """A model to show renameable files and their proposed new names
+
+    Args:
+        QAbstractTableModel (_type_): ???
+    """
+
+    def __init__(self, toRenameList: list[tuple[str, str]] | None = None) -> None:
+        """Inits the class
+
+        Args:
+            datelessItemsList (list[tuple[str,str]] | None, optional): A list of files that can be renamed and their
+            proposed new name.
+            Defaults to None.
+        """
+        self.columns = ["Current Filename", "Proposed New Name"]
+        super().__init__()
+        self.toRenameList: list[tuple[str, str]] = toRenameList or []
+
+    def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+        if role == Qt.ItemDataRole.DisplayRole:
+            return self.toRenameList[index.row()][index.column()]
+        # TODO: If has sidecar, paint background?
+        return None
+
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int = ...):
+        # for setting columns name
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
+            return f"{self.columns[section]}"
+
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+        return len(self.toRenameList)
+
+    def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+        return 2
+
+    def replaceListOfFiles(self, newToRenameList: list[tuple[str, str]]) -> None:
+        self.toRenameList = newToRenameList
+        self.layoutChanged.emit()
+
+
 class showDatelessModel(QAbstractTableModel):
     """A model for the dateless items table
 
@@ -379,6 +420,7 @@ class showDatelessModel(QAbstractTableModel):
             Defaults to None.
         """
 
+        self.columns = ["Filename", "Proposed New Date"]
         super().__init__()
         self.datelessItemsList: list[tuple[str, str]] = datelessItemsList or []
 
@@ -386,6 +428,11 @@ class showDatelessModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             return self.datelessItemsList[index.row()][index.column()]
         return None
+
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int = ...):
+        # for setting columns name
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
+            return f"{self.columns[section]}"
 
     def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return len(self.datelessItemsList)

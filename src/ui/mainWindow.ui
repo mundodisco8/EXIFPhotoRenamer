@@ -84,25 +84,7 @@ QProgressBar {
        <property name="verticalSpacing">
         <number>0</number>
        </property>
-       <item row="2" column="1">
-        <widget class="QListView" name="namePreviewList"/>
-       </item>
        <item row="0" column="1">
-        <widget class="QLabel" name="label_3">
-         <property name="font">
-          <font>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Name Preview</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0">
-        <widget class="QListView" name="toRenameList"/>
-       </item>
-       <item row="0" column="0">
         <widget class="QLabel" name="label_2">
          <property name="font">
           <font>
@@ -114,21 +96,21 @@ QProgressBar {
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QPushButton" name="refreshFilesToRenameBtn">
-         <property name="minimumSize">
-          <size>
-           <width>130</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Refresh Files To Rename</string>
-         </property>
-        </widget>
-       </item>
        <item row="3" column="1">
-        <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="80,20">
+        <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="80,15,5">
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
          <item>
           <widget class="QPushButton" name="renameBtn">
            <property name="text">
@@ -144,6 +126,22 @@ QProgressBar {
           </widget>
          </item>
         </layout>
+       </item>
+       <item row="1" column="1">
+        <widget class="QPushButton" name="refreshFilesToRenameBtn">
+         <property name="minimumSize">
+          <size>
+           <width>130</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Refresh Files To Rename</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QTableView" name="toRenamePreviewTable"/>
        </item>
       </layout>
      </item>
