@@ -2,8 +2,8 @@
 
 
 a = Analysis(
-    ['src/renameGUI.py'],
-    pathex=[],
+    ['src\\renameGUI.py'],
+    pathex=['src'],
     binaries=[],
     datas=[],
     hiddenimports=[],
