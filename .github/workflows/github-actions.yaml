@@ -78,8 +78,11 @@ jobs:
       uses: actions/checkout@v5
 
     - name: docker
-      run:
-        docker run --volume $GITHUB_WORKSPACE:/src/ --env SPECFILE=./renameGUI.spec batonogov/pyinstaller-linux:latest
+      run: |
+        ls
+        printenv $GITHUB_WORKSPACE
+        ls $GITHUB_WORKSPACE
+        docker run --volume .:/src/ --env SPECFILE=./renameGUI.spec batonogov/pyinstaller-linux:latest
     # - name: Copy the Repo
     #   run: |
     #     # put the src folder inside wine
