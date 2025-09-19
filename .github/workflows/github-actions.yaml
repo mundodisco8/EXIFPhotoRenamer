@@ -48,7 +48,7 @@ jobs:
       run: |
         # we need wine for this all to work, so we'll use the PPA
         set -x
-        dpkg --add-architecture i386
+        sudo dpkg --add-architecture i386
         apt update -qy
         apt install --no-install-recommends -qfy apt-transport-https software-properties-common wget gpg-agent rename
         mkdir -pm755 /etc/apt/keyrings
