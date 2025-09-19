@@ -1,0 +1,35 @@
+# # This workflow will install Python dependencies, run tests and lint with a single version of Python
+# # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Build BattSimGUI exe
+
+on:
+  push:
+    branches: [ main, develop, testGithubActions ]
+  pull_request:
+    branches: [ main, develop, testGithubActions ]
+
+permissions:
+  contents: read
+env:
+  # This environment variable silences a warning triggered by running pip outside of a virtual environment. While you
+  # normally shouldn't, because the scope of this is to spin a virtual machine to build the application
+  PIP_ROOT_USER_ACTION: ignore
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clone Repo
+      uses: actions/checkout@v5
+
+    - name: Build the Exe
+    # The easiest way to build a exe for windows is to use this image.
+      run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-windows:latest
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: RenameGUI
+        path: dist/
