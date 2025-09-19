@@ -79,10 +79,7 @@ jobs:
 
     - name: docker 1
       run: ls
-    - name: docker 2
-      run: printenv $GITHUB_WORKSPACE
-    - name: docker 3
-      run: ls $GITHUB_WORKSPACE
+
     - name: docker 4
       run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-linux:latest
     # - name: Copy the Repo
