@@ -41,95 +41,107 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: batonogov/pyinstaller-windows
+      volumes:
+        - $GITHUB_WORKSPACE:/src/
+      env:
+        SPECFILE: /src/
 
     steps:
-    # All this from the dockerfile for the pyinstaller for windows image
-    - name: Install Wine For Windows
-      run: |
-        # we need wine for this all to work, so we'll use the PPA
-        set -x
-        sudo dpkg --add-architecture i386
-        sudo apt update -qy
-        sudo apt install --no-install-recommends -qfy apt-transport-https software-properties-common wget gpg-agent rename
-        sudo mkdir -pm755 /etc/apt/keyrings
-        sudo wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key
-        sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources
-        sudo apt update -qy
-        sudo apt install --install-recommends -qfy $WINE_VERSION winbind  cabextract
-        sudo apt clean
-        sudo rm -rf /var/lib/apt/lists/* /var/cache/*
-        sudo wget -nv https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
-        sudo chmod +x winetricks
-        sudo mv winetricks /usr/local/bin
-    - name: Install Python in Wine
-      run: |
-        # install python in wine, using the msi packages to install, extracting
-        # the files directly, since installing isn't running correctly.
-        set -x \
-        winetricks win10
-        for msifile in `echo core dev exe lib path pip tcltk`; do wget -nv "https://www.python.org/ftp/python/$PYTHON_VERSION/amd64/${msifile}.msi"; wine msiexec /i "${msifile}.msi" /qb TARGETDIR=C:/Python3; rm ${msifile}.msi; done
-        cd /wine/drive_c/Python3
-        echo 'wine '\''C:\Python3\python.exe'\'' "$@"' > /usr/bin/python
-        echo 'wine '\''C:\Python3\Scripts\easy_install.exe'\'' "$@"' > /usr/bin/easy_install
-        echo 'wine '\''C:\Python3\Scripts\pip.exe'\'' "$@"' > /usr/bin/pip
-        echo 'wine '\''C:\Python3\Scripts\pyinstaller.exe'\'' "$@"' > /usr/bin/pyinstaller
-        echo 'wine '\''C:\Python3\Scripts\pyupdater.exe'\'' "$@"' > /usr/bin/pyupdater
-        echo 'assoc .py=PythonScript' | wine cmd
-        echo 'ftype PythonScript=c:\Python3\python.exe "%1" %*' | wine cmd
-        while pgrep wineserver >/dev/null; do echo "Waiting for wineserver"; sleep 1; done
-        chmod +x /usr/bin/python /usr/bin/easy_install /usr/bin/pip /usr/bin/pyinstaller /usr/bin/pyupdater
-        (pip install -U pip || true)
-        rm -rf /tmp/.wine-*
-    - name: Install MS Visual C++
-      run: |
-        # install Microsoft Visual C++ Redistributable for Visual Studio 2017 dll files
-        set -x
-        rm -f "$W_TMP"/*
-        wget -P "$W_TMP" https://download.visualstudio.microsoft.com/download/pr/11100230/15ccb3f02745c7b206ad10373cbca89b/VC_redist.x64.exe
-        cabextract -q --directory="$W_TMP" "$W_TMP"/VC_redist.x64.exe
-        cabextract -q --directory="$W_TMP" "$W_TMP/a10"
-        cabextract -q --directory="$W_TMP" "$W_TMP/a11"
-        cd "$W_TMP"
-        rename 's/_/\-/g' *.dll
-        cp "$W_TMP"/*.dll "$W_SYSTEM64_DLLS"/
-    - name: Install PyInstaller
-      run: /usr/bin/pip install --no-cache-dir pyinstaller==$PYINSTALLER_VERSION
+    # # All this from the dockerfile for the pyinstaller for windows image
+    # - name: Install Wine For Windows
+    #   run: |
+    #     # we need wine for this all to work, so we'll use the PPA
+    #     set -x
+    #     sudo dpkg --add-architecture i386
+    #     sudo apt update -qy
+    #     sudo apt install --no-install-recommends -qfy apt-transport-https software-properties-common wget gpg-agent rename
+    #     sudo mkdir -pm755 /etc/apt/keyrings
+    #     sudo wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key
+    #     sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources
+    #     sudo apt update -qy
+    #     sudo apt install --install-recommends -qfy $WINE_VERSION winbind  cabextract
+    #     sudo apt clean
+    #     sudo rm -rf /var/lib/apt/lists/* /var/cache/*
+    #     sudo wget -nv https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
+    #     sudo chmod +x winetricks
+    #     sudo mv winetricks /usr/local/bin
+    # - name: Install Python in Wine
+    #   run: |
+    #     # install python in wine, using the msi packages to install, extracting
+    #     # the files directly, since installing isn't running correctly.
+    #     set -x \
+    #     winetricks win10
+    #     for msifile in `echo core dev exe lib path pip tcltk`; do wget -nv "https://www.python.org/ftp/python/$PYTHON_VERSION/amd64/${msifile}.msi"; wine msiexec /i "${msifile}.msi" /qb TARGETDIR=C:/Python3; rm ${msifile}.msi; done
+    #     cd /wine/drive_c/Python3
+    #     echo 'wine '\''C:\Python3\python.exe'\'' "$@"' > /usr/bin/python
+    #     echo 'wine '\''C:\Python3\Scripts\easy_install.exe'\'' "$@"' > /usr/bin/easy_install
+    #     echo 'wine '\''C:\Python3\Scripts\pip.exe'\'' "$@"' > /usr/bin/pip
+    #     echo 'wine '\''C:\Python3\Scripts\pyinstaller.exe'\'' "$@"' > /usr/bin/pyinstaller
+    #     echo 'wine '\''C:\Python3\Scripts\pyupdater.exe'\'' "$@"' > /usr/bin/pyupdater
+    #     echo 'assoc .py=PythonScript' | wine cmd
+    #     echo 'ftype PythonScript=c:\Python3\python.exe "%1" %*' | wine cmd
+    #     while pgrep wineserver >/dev/null; do echo "Waiting for wineserver"; sleep 1; done
+    #     chmod +x /usr/bin/python /usr/bin/easy_install /usr/bin/pip /usr/bin/pyinstaller /usr/bin/pyupdater
+    #     (pip install -U pip || true)
+    #     rm -rf /tmp/.wine-*
+    # - name: Install MS Visual C++
+    #   run: |
+    #     # install Microsoft Visual C++ Redistributable for Visual Studio 2017 dll files
+    #     set -x
+    #     rm -f "$W_TMP"/*
+    #     wget -P "$W_TMP" https://download.visualstudio.microsoft.com/download/pr/11100230/15ccb3f02745c7b206ad10373cbca89b/VC_redist.x64.exe
+    #     cabextract -q --directory="$W_TMP" "$W_TMP"/VC_redist.x64.exe
+    #     cabextract -q --directory="$W_TMP" "$W_TMP/a10"
+    #     cabextract -q --directory="$W_TMP" "$W_TMP/a11"
+    #     cd "$W_TMP"
+    #     rename 's/_/\-/g' *.dll
+    #     cp "$W_TMP"/*.dll "$W_SYSTEM64_DLLS"/
+    # - name: Install PyInstaller
+    #   run: /usr/bin/pip install --no-cache-dir pyinstaller==$PYINSTALLER_VERSION
 
     - name: Clone Repo
         # Default path will be C:\Users\runneradmin\work\<repo-name>\<repo-name>
       uses: actions/checkout@v5
 
-    - name: Copy the Repo
-      run: |
-        # put the src folder inside wine
-        ln -s $GITHUB_WORKSPACE /wine/drive_c/src
-        cd /wine/drive_c/src/
-        mkdir -p /wine/drive_c/tmp
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      if: ${{ failure() }}
       with:
-        python-version: "3.11"
+        ## If no one connects after 5 minutes, shut down server.
+        wait-timeout-minutes: 5
+    # - name: Copy the Repo
+    #   run: |
+    #     # put the src folder inside wine
+    #     ln -s $GITHUB_WORKSPACE /wine/drive_c/src
+    #     cd /wine/drive_c/src/
+    #     mkdir -p /wine/drive_c/tmp
 
-    - name: Install dependencies
-      working-directory: /wine/drive_c/src/
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
+    # - name: Set up Python
+    #   uses: actions/setup-python@v4
+    #   with:
+    #     python-version: "3.11"
 
-    - name: Build exe
-      # This is the job of entrypoint.sh in the docker image
-      working-directory: /wine/drive_c/src/
-      run: |
-        chmod +x generateWindowsBinary.sh
-        ./generateWindowsBinary.sh
+    # - name: Install dependencies
+    #   working-directory: /wine/drive_c/src/
+    #   run: |
+    #     python -m pip install --upgrade pip
+    #     pip install -r requirements.txt
+    #     pip install pyinstaller
 
-    - name: Copy the config file
-      run: cp KinginBatteryConfig.json5 dist\BatterySimGUI\
+    # - name: Build exe
+    #   # This is the job of entrypoint.sh in the docker image
+    #   working-directory: /wine/drive_c/src/
+    #   run: |
+    #     chmod +x generateWindowsBinary.sh
+    #     ./generateWindowsBinary.sh
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: BatterySimGUI
-        path: dist/
+    # - name: Copy the config file
+    #   run: cp KinginBatteryConfig.json5 dist\BatterySimGUI\
+
+    # - name: Upload Artifact
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: BatterySimGUI
+    #     path: dist/
