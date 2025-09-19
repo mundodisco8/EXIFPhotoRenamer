@@ -49,18 +49,18 @@ jobs:
         # we need wine for this all to work, so we'll use the PPA
         set -x
         sudo dpkg --add-architecture i386
-        apt update -qy
-        apt install --no-install-recommends -qfy apt-transport-https software-properties-common wget gpg-agent rename
-        mkdir -pm755 /etc/apt/keyrings
-        wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key
-        wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources
-        apt update -qy
-        apt install --install-recommends -qfy $WINE_VERSION winbind  cabextract
-        apt clean
-        rm -rf /var/lib/apt/lists/* /var/cache/*
-        wget -nv https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
-        chmod +x winetricks
-        mv winetricks /usr/local/bin
+        sudo apt update -qy
+        sudo apt install --no-install-recommends -qfy apt-transport-https software-properties-common wget gpg-agent rename
+        sudo mkdir -pm755 /etc/apt/keyrings
+        sudo wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key
+        sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources
+        sudo apt update -qy
+        sudo apt install --install-recommends -qfy $WINE_VERSION winbind  cabextract
+        sudo apt clean
+        sudo rm -rf /var/lib/apt/lists/* /var/cache/*
+        sudo wget -nv https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
+        sudo chmod +x winetricks
+        sudo mv winetricks /usr/local/bin
     - name: Install Python in Wine
       run: |
         # install python in wine, using the msi packages to install, extracting
