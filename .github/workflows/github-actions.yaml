@@ -79,10 +79,7 @@ jobs:
 
     - name: docker
       run:
-        docker run \
-        --volume "$(pwd):/src/" \
-        --env SPECFILE=./renameGUI.spec \
-        batonogov/pyinstaller-linux:latest
+        docker run --volume "$(pwd):/src/" --env SPECFILE=./renameGUI.spec batonogov/pyinstaller-linux:latest
     # - name: Copy the Repo
     #   run: |
     #     # put the src folder inside wine
