@@ -41,12 +41,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: batonogov/pyinstaller-windows
-      volumes:
-        - $GITHUB_WORKSPACE:/src/
-      env:
-        SPECFILE: /src/
 
     steps:
     # # All this from the dockerfile for the pyinstaller for windows image
