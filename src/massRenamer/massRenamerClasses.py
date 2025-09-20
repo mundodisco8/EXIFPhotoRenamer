@@ -52,6 +52,9 @@ from whenever import OffsetDateTime, PlainDateTime, TimeDelta, ZonedDateTime
 
 module_logger = getLogger(__name__)
 
+####
+# Lists
+####
 
 # list of image extensions:
 IMAGE_EXTENSIONS: list[str] = [".jpeg", ".jpg", ".png", ".heic"]
@@ -59,19 +62,287 @@ VIDEO_EXTENSIONS: list[str] = [".mov", ".mp4"]
 # List of file extensions to ignore, as EXIFTool generates empty tags for them.
 DONT_PROCESS_EXTENSIONS: list[str] = [".aae", ".ds_store", ".json", ".zip"]
 
-##
-# Compiled Regexes
-##
-
-# GPS coordinates
-GPSCoordsRegEx = compile(r"([0-9]+) deg ([0-9]+)' ([0-9.]+)\"")
-
-####
-# Creation date finder - findCreationTime
-####
+# These are all the time tags that -time:all extract. Note that these tags don't have their group attached to them
+# Extracted with exiftool -list -time:all
+TIME_TAGS_LIST: list[str] = [
+    "ABDate",
+    "AccessDate",
+    "Acknowledged",
+    "AcquisitionTime",
+    "AcquisitionTimeDayAcquisitionTimeMonth",
+    "AcquisitionTimeStamp",
+    "AcquisitionTimeYearAcquisitionTimeYearMonth",
+    "AcquisitionTimeYearMonthDay",
+    "AppleMailDateReceivedAppleMailDateSent",
+    "ArtworkCircaDateCreated",
+    "ArtworkDateCreated",
+    "AudioModDateBackupTime",
+    "Birthday",
+    "BroadcastDate",
+    "BroadcastTime",
+    "BuildDate",
+    "CFEGFlashTimeStampCalibrationDateTime",
+    "CameraDateTime",
+    "CameraPoseTimestamp",
+    "CaptionsDateTimeStampsCircaDateCreated",
+    "ClassifyingCountryCodingMethodDate",
+    "ClipCreationDateTimeCommentTime",
+    "ContainerLastModifyDate",
+    "ContentCreateDate",
+    "ContractDateTimeCopyrightYear",
+    "CoverDate",
+    "CreateDate",
+    "CreationDate",
+    "CreationTime",
+    "DataCreateDateDataModifyDate",
+    "Date",
+    "Date1",
+    "Date2",
+    "DateAccessed",
+    "DateAcquired",
+    "DateArchivedDateCompleted",
+    "DateCreated",
+    "DateDisplayFormat",
+    "DateEncoded",
+    "DateIdentifiedDateImported",
+    "DateLastSaved",
+    "DateModified",
+    "DatePictureTaken",
+    "DatePurchasedDateReceived",
+    "DateRecieved",
+    "DateReleased",
+    "DateSent",
+    "DateTagged",
+    "DateTime",
+    "DateTime1DateTime2",
+    "DateTimeCompleted",
+    "DateTimeCreated",
+    "DateTimeDigitizedDateTimeDropFrameFlag",
+    "DateTimeDue",
+    "DateTimeEmbeddedFlag",
+    "DateTimeEndDateTimeGenerated",
+    "DateTimeKind",
+    "DateTimeOriginal",
+    "DateTimeRate",
+    "DateTimeStampDateTimeStart",
+    "DateTimeUTC",
+    "DateVisited",
+    "DateWritten",
+    "DayOfWeek",
+    "DaylightSavingsDeclassificationDate",
+    "DeprecatedOn",
+    "DerivedFromLastModifyDate",
+    "DestinationCityDestinationDST",
+    "DigitalCreationDate",
+    "DigitalCreationDateTimeDigitalCreationTime",
+    "EarthPosTimestamp",
+    "EmbargoDate",
+    "EncodeTime",
+    "EncodingTimeEndTime",
+    "EventAbsoluteDuration",
+    "EventDate",
+    "EventDay",
+    "EventEarliestDateEventEndDayOfYear",
+    "EventEndTimecodeOffset",
+    "EventLatestDate",
+    "EventMonthEventStartDayOfYear",
+    "EventStartTime",
+    "EventStartTimecodeOffset",
+    "EventTimeEventVerbatimEventDate",
+    "EventYear",
+    "ExceptionDateTimes",
+    "ExclusivityEndDateExpirationDate",
+    "ExpirationTime",
+    "ExtensionCreateDate",
+    "ExtensionModifyDateFileAccessDate",
+    "FileCreateDate",
+    "FileInodeChangeDate",
+    "FileModifyDateFilmTestResult",
+    "FirstPhotoDate",
+    "FirstPublicationDate",
+    "FormatVersionTimeGPSDateStamp",
+    "GPSDateTime",
+    "GPSDateTimeRaw",
+    "GPSTimeStamp",
+    "HistoryWhen",
+    "HometownCityHometownDST",
+    "HumanObservationDay",
+    "HumanObservationEarliestDateHumanObservationEndDayOfYear",
+    "HumanObservationEventDateHumanObservationEventTime",
+    "HumanObservationLatestDate",
+    "HumanObservationMonthHumanObservationStartDayOfYear",
+    "HumanObservationVerbatimEventDateHumanObservationYear",
+    "IPTCLastEdited",
+    "ImageProcessingFileDateCreatedIngredientsLastModifyDate",
+    "KillDateDate",
+    "LastBackupDate",
+    "LastPhotoDateLastPrinted",
+    "LastUpdate",
+    "LayerModifyDates",
+    "LicenseEndDate",
+    "LicenseStartDateLicenseTransactionDate",
+    "LocalCreationDateTime",
+    "LocalEndDateTimeLocalEventEndDateTime",
+    "LocalEventStartDateTime",
+    "LocalFestivalDateTimeLocalLastModifyDate",
+    "LocalModifyDate",
+    "LocalStartDateTime",
+    "LocalUserDateTimeLocationDate",
+    "MDItemContentCreationDate",
+    "MDItemContentCreationDateRankingMDItemContentCreationDate_Ranking",
+    "MDItemContentModificationDateMDItemDateAdded",
+    "MDItemDateAdded_Ranking",
+    "MDItemDownloadedDateMDItemFSContentChangeDate",
+    "MDItemFSCreationDate",
+    "MDItemGPSDateStampMDItemInterestingDateRanking",
+    "MDItemInterestingDate_Ranking",
+    "MDItemLastUsedDateMDItemMailDateReceived_Ranking",
+    "MDItemTimestamp",
+    "MDItemUsedDatesMDItemUserDownloadedDate",
+    "MachineObservationDay",
+    "MachineObservationEarliestDateMachineObservationEndDayOfYear",
+    "MachineObservationEventDateMachineObservationEventTime",
+    "MachineObservationLatestDateMachineObservationMonth",
+    "MachineObservationStartDayOfYearMachineObservationVerbatimEventDate",
+    "MachineObservationYearManagedFromLastModifyDate",
+    "ManifestReferenceLastModifyDate",
+    "ManufactureDateManufactureDate1",
+    "ManufactureDate2",
+    "MaterialAbsoluteDurationMaterialEndTimecodeOffset",
+    "MeasurementDeterminedDate",
+    "MediaCreateDateMediaModifyDate",
+    "MediaOriginalBroadcastDateTime",
+    "MetadataDateMetadataLastEdited",
+    "MetadataModDate",
+    "MinoltaDate",
+    "MinoltaTime",
+    "ModDateModificationDate",
+    "ModifyDate",
+    "Month",
+    "MonthDayCreated",
+    "MoonPhase",
+    "NikonDateTime",
+    "NowON1_SettingsMetadataCreated",
+    "ON1_SettingsMetadataModifiedON1_SettingsMetadataTimestamp",
+    "ObjectCountryCodingMethodDate",
+    "ObservationDateObservationDateEnd",
+    "ObservationTime",
+    "ObservationTimeEnd",
+    "OffSaleDateDateOffsetTime",
+    "OffsetTimeDigitized",
+    "OffsetTimeOriginal",
+    "OnSaleDateDateOptionEndDate",
+    "OriginalCreateDateTime",
+    "OriginalReleaseTime",
+    "OriginalReleaseYearOtherDate1",
+    "OtherDate2",
+    "OtherDate3",
+    "PDBCreateDate",
+    "PDBModifyDatePackageLastModifyDate",
+    "PanasonicDateTime",
+    "PatientBirthDate",
+    "PaymentDueDateTimePhysicalMediaLength",
+    "PlanePoseTimestamp",
+    "PoseTimestamp",
+    "PowerUpTime",
+    "PreviewDatePreviewDateTime",
+    "ProducedDate",
+    "ProductionDate",
+    "ProfileDateTimePublicationDateDate",
+    "PublicationDisplayDateDate",
+    "PublicationEventDatePublishDate",
+    "PublishDateStart",
+    "RecordedDate",
+    "RecordingTime",
+    "RecordingTimeDayRecordingTimeMonth",
+    "RecordingTimeYear",
+    "RecordingTimeYearMonthRecordingTimeYearMonthDay",
+    "RecurrenceDateTimes",
+    "RecurrenceRule",
+    "ReelTimecodeReferenceDate",
+    "RegionInfoDateRegionsValid",
+    "RegisterCreationTimeRegisterItemStatusChangeDateTime",
+    "RegisterReleaseDateTime",
+    "RegisterUserTimeRelationshipEstablishedDate",
+    "ReleaseDate",
+    "ReleaseDateDay",
+    "ReleaseDateMonthReleaseDateYear",
+    "ReleaseDateYearMonth",
+    "ReleaseDateYearMonthDay",
+    "ReleaseTimeRenditionOfLastModifyDate",
+    "RevisionDate",
+    "RicohDate",
+    "RightsStartDateTimeRightsStopDateTime",
+    "RootDirectoryCreateDate",
+    "SMPTE12MUserDateTimeSMPTE309MUserDateTime",
+    "SampleDateTime",
+    "ScanDate",
+    "ScanSoftwareRevisionDateSeriesDateTime",
+    "SettingDateTime",
+    "ShotDate",
+    "SigningDate",
+    "SonyDateTimeSonyDateTime2",
+    "SourceDate",
+    "SourceModified",
+    "StartTime",
+    "StartTimecodeStartTimecodeRelativeToReference",
+    "StorageFormatDate",
+    "StorageFormatTimeStudyDateTime",
+    "SubSecCreateDate",
+    "SubSecDateTimeOriginal",
+    "SubSecModifyDateSubSecTime",
+    "SubSecTimeDigitized",
+    "SubSecTimeOriginal",
+    "TaggingTimeTemporalCoverageFrom",
+    "TemporalCoverageTo",
+    "ThumbnailDateTime",
+    "Time",
+    "Time1",
+    "Time2TimeAndDate",
+    "TimeCreated",
+    "TimeSent",
+    "TimeStamp",
+    "TimeStamp1",
+    "TimeStampList",
+    "TimeZoneTimeZone2",
+    "TimeZoneCity",
+    "TimeZoneCode",
+    "TimeZoneDST",
+    "TimeZoneInfo",
+    "TimeZoneURLTimecodeCreationDateTime",
+    "TimecodeEndDateTime",
+    "TimecodeEventEndDateTimeTimecodeEventStartDateTime",
+    "TimecodeLastModifyDate",
+    "TimecodeModifyDateTimecodeStartDateTime",
+    "TimezoneID",
+    "TimezoneName",
+    "TimezoneOffsetFromTimezoneOffsetTo",
+    "TrackCreateDate",
+    "TrackModifyDate",
+    "TransformCreateDateTransformModifyDate",
+    "UTCEndDateTime",
+    "UTCEventEndDateTime",
+    "UTCEventStartDateTimeUTCInstantDateTime",
+    "UTCLastModifyDate",
+    "UTCStartDateTime",
+    "UTCUserDateTimeUnknownDate",
+    "VersionCreateDate",
+    "VersionModifyDate",
+    "VersionsEventWhenVersionsModifyDate",
+    "VideoModDate",
+    "VolumeCreateDate",
+    "VolumeEffectiveDateVolumeExpirationDate",
+    "VolumeModifyDate",
+    "WorldTimeLocationXAttrAppleMailDateReceived",
+    "XAttrAppleMailDateSent",
+    "XAttrLastUsedDateXAttrMDItemDownloadedDate",
+    "Year",
+    "YearCreated",
+    "ZipModifyDate",
+]
 
 # These are the tags that I'm capturing with EXIFTool about creation time
-dateTagsToCheck: list[str] = [
+DATE_TAGS_TO_CHECK: list[str] = [
     "ExifIFD:DateTimeOriginal",
     "QuickTime:DateTimeOriginal",
     "XMP:DateTimeOriginal",
@@ -84,19 +355,25 @@ dateTagsToCheck: list[str] = [
 ]
 
 # This dict contains the correct offset tag for each time tag
-offsetDict: dict[str, str] = {
+OFFSET_DICT: dict[str, str] = {
     "ExifIFD:DateTimeOriginal": "ExifIFD:OffsetTimeOriginal",
     "ExifIFD:CreateDate": "ExifIFD:OffsetTimeDigitized",
     "ExifIFD:ModifyDate": "ExifIFD:OffsetTime",
 }
 
 # List of GPS tags to grab metadata from
-GPSTagsList: list[str] = [
+GPS_TAGS_LIST: list[str] = [
     "GPSLatitudeRef",
     "GPSLatitude",
     "GPSLongitudeRef",
     "GPSLongitude",
 ]
+##
+# Compiled Regexes
+##
+
+# GPS coordinates
+GPSCoordsRegEx = compile(r"([0-9]+) deg ([0-9]+)' ([0-9.]+)\"")
 
 
 class MediaFile:
@@ -214,10 +491,10 @@ class MediaFile:
         # 0x9011    OffsetTimeOriginal      string  ExifIFD     (time zone for DateTimeOriginal)
         # 0x9012    OffsetTimeDigitized     string  ExifIFD     (time zone for CreateDate)
 
-        # Loop through the dateTagsToCheck tags. They are sorted by preference. As soon as we have one, we can take that one
+        # Loop through the DATE_TAGS_TO_CHECK tags. They are sorted by preference. As soon as we have one, we can take that one
         # as the date and break
         date: ZonedDateTime | OffsetDateTime | PlainDateTime | None = None
-        for tag in dateTagsToCheck:
+        for tag in DATE_TAGS_TO_CHECK:
             if tag in exifToolData:
                 # Ideally, we got a date in the format YYYY-MM-DDThh:mm:ss±OO:OO, that we can parse as OffsetDateTime
                 try:
@@ -278,8 +555,8 @@ class MediaFile:
                         date = date.to_tz(myTZ).to_fixed_offset()
                 else:
                     # No GPS location, try offsets
-                    if tag in offsetDict.keys() and offsetDict[tag] in exifToolData.keys():
-                        offsetStr = exifToolData[offsetDict[tag]]
+                    if tag in OFFSET_DICT.keys() and OFFSET_DICT[tag] in exifToolData.keys():
+                        offsetStr = exifToolData[OFFSET_DICT[tag]]
                         if len(offsetStr) == 6:
                             offsetSign = offsetStr[0]  # + or -
                             offsetHours = offsetStr[1:3]  # HH
@@ -297,7 +574,7 @@ class MediaFile:
                         else:
                             # Offset has to be ±HH:MM or 'Z'
                             raise ValueError(
-                                f"In {offsetDict['SourceFile']}: Offset ('{offsetStr}') is the wrong length"
+                                f"In {exifToolData['SourceFile']}: Offset ('{offsetStr}') string has wrong length"
                             )
                         # Type dance: convert to plain (to get rid of whatever offset it had), assume it has a certain fixed
                         # offset, so we have a time with the same "value" but on a different offset.
@@ -595,6 +872,39 @@ def storeMediaFileListTags(outputFile: Path, listMediaFiles: list[MediaFile]) ->
 ####
 # Creation date fixers
 ####
+
+
+def isTagATimeTag(tag: str) -> bool:
+    """Checks if the passed tag is one of the tags returned by -time:all
+
+    Args:
+        tag (str): the tag to check, as a string
+
+    Returns:
+        bool: true if it's in the -time:all shortcut, false otherwise
+    """
+    # Display data. We will filter the tags and display only the time-related ones. We have a list of time tags
+    # but they don't have group info, so we have to split after the semicolon in order to match them
+    # Split by the semicolon and take the second part
+    if tag:
+        tagGroup, separator, tagWithoutGroup = tag.partition(":")
+        if separator:
+            # If separator was found, the tag included group information
+            if tagWithoutGroup in TIME_TAGS_LIST:
+                return True
+            # One Corner Case is that System File tags ("System:FileModifyDate", "System:FileAccessDate",
+            # "System:FileCreateDate") are not in the list (as they might not be treated as EXIF tags)
+            # Same for our "Inferred" dates
+            if tagGroup == "System":
+                return True
+            elif tagGroup == "Inferred":
+                return True
+        else:
+            # The tag might have been passed without a group, let's check it nevertheless
+            if tag in TIME_TAGS_LIST:
+                return True
+    # Otherwise, it's not a time tag
+    return False
 
 
 # NOTE: Tested

@@ -1,288 +1,9 @@
-from enum import IntEnum, StrEnum
+from enum import StrEnum
 
 from PySide6.QtCore import Qt, QAbstractListModel, QAbstractTableModel, QModelIndex, QPersistentModelIndex
 from PySide6.QtGui import QColor, QFont
 
-from massRenamer.massRenamerClasses import MediaFile
-
-# These are all the time tags that -time:all extract. Note that these tags don't have their group attached to them
-# Extracted with exiftool -list -time:all
-TIME_TAGS_LIST: list[str] = [
-    "ABDate",
-    "AccessDate",
-    "Acknowledged",
-    "AcquisitionTime",
-    "AcquisitionTimeDayAcquisitionTimeMonth",
-    "AcquisitionTimeStamp",
-    "AcquisitionTimeYearAcquisitionTimeYearMonth",
-    "AcquisitionTimeYearMonthDay",
-    "AppleMailDateReceivedAppleMailDateSent",
-    "ArtworkCircaDateCreated",
-    "ArtworkDateCreated",
-    "AudioModDateBackupTime",
-    "Birthday",
-    "BroadcastDate",
-    "BroadcastTime",
-    "BuildDate",
-    "CFEGFlashTimeStampCalibrationDateTime",
-    "CameraDateTime",
-    "CameraPoseTimestamp",
-    "CaptionsDateTimeStampsCircaDateCreated",
-    "ClassifyingCountryCodingMethodDate",
-    "ClipCreationDateTimeCommentTime",
-    "ContainerLastModifyDate",
-    "ContentCreateDate",
-    "ContractDateTimeCopyrightYear",
-    "CoverDate",
-    "CreateDate",
-    "CreationDate",
-    "CreationTime",
-    "DataCreateDateDataModifyDate",
-    "Date",
-    "Date1",
-    "Date2",
-    "DateAccessed",
-    "DateAcquired",
-    "DateArchivedDateCompleted",
-    "DateCreated",
-    "DateDisplayFormat",
-    "DateEncoded",
-    "DateIdentifiedDateImported",
-    "DateLastSaved",
-    "DateModified",
-    "DatePictureTaken",
-    "DatePurchasedDateReceived",
-    "DateRecieved",
-    "DateReleased",
-    "DateSent",
-    "DateTagged",
-    "DateTime",
-    "DateTime1DateTime2",
-    "DateTimeCompleted",
-    "DateTimeCreated",
-    "DateTimeDigitizedDateTimeDropFrameFlag",
-    "DateTimeDue",
-    "DateTimeEmbeddedFlag",
-    "DateTimeEndDateTimeGenerated",
-    "DateTimeKind",
-    "DateTimeOriginal",
-    "DateTimeRate",
-    "DateTimeStampDateTimeStart",
-    "DateTimeUTC",
-    "DateVisited",
-    "DateWritten",
-    "DayOfWeek",
-    "DaylightSavingsDeclassificationDate",
-    "DeprecatedOn",
-    "DerivedFromLastModifyDate",
-    "DestinationCityDestinationDST",
-    "DigitalCreationDate",
-    "DigitalCreationDateTimeDigitalCreationTime",
-    "EarthPosTimestamp",
-    "EmbargoDate",
-    "EncodeTime",
-    "EncodingTimeEndTime",
-    "EventAbsoluteDuration",
-    "EventDate",
-    "EventDay",
-    "EventEarliestDateEventEndDayOfYear",
-    "EventEndTimecodeOffset",
-    "EventLatestDate",
-    "EventMonthEventStartDayOfYear",
-    "EventStartTime",
-    "EventStartTimecodeOffset",
-    "EventTimeEventVerbatimEventDate",
-    "EventYear",
-    "ExceptionDateTimes",
-    "ExclusivityEndDateExpirationDate",
-    "ExpirationTime",
-    "ExtensionCreateDate",
-    "ExtensionModifyDateFileAccessDate",
-    "FileCreateDate",
-    "FileInodeChangeDate",
-    "FileModifyDateFilmTestResult",
-    "FirstPhotoDate",
-    "FirstPublicationDate",
-    "FormatVersionTimeGPSDateStamp",
-    "GPSDateTime",
-    "GPSDateTimeRaw",
-    "GPSTimeStamp",
-    "HistoryWhen",
-    "HometownCityHometownDST",
-    "HumanObservationDay",
-    "HumanObservationEarliestDateHumanObservationEndDayOfYear",
-    "HumanObservationEventDateHumanObservationEventTime",
-    "HumanObservationLatestDate",
-    "HumanObservationMonthHumanObservationStartDayOfYear",
-    "HumanObservationVerbatimEventDateHumanObservationYear",
-    "IPTCLastEdited",
-    "ImageProcessingFileDateCreatedIngredientsLastModifyDate",
-    "KillDateDate",
-    "LastBackupDate",
-    "LastPhotoDateLastPrinted",
-    "LastUpdate",
-    "LayerModifyDates",
-    "LicenseEndDate",
-    "LicenseStartDateLicenseTransactionDate",
-    "LocalCreationDateTime",
-    "LocalEndDateTimeLocalEventEndDateTime",
-    "LocalEventStartDateTime",
-    "LocalFestivalDateTimeLocalLastModifyDate",
-    "LocalModifyDate",
-    "LocalStartDateTime",
-    "LocalUserDateTimeLocationDate",
-    "MDItemContentCreationDate",
-    "MDItemContentCreationDateRankingMDItemContentCreationDate_Ranking",
-    "MDItemContentModificationDateMDItemDateAdded",
-    "MDItemDateAdded_Ranking",
-    "MDItemDownloadedDateMDItemFSContentChangeDate",
-    "MDItemFSCreationDate",
-    "MDItemGPSDateStampMDItemInterestingDateRanking",
-    "MDItemInterestingDate_Ranking",
-    "MDItemLastUsedDateMDItemMailDateReceived_Ranking",
-    "MDItemTimestamp",
-    "MDItemUsedDatesMDItemUserDownloadedDate",
-    "MachineObservationDay",
-    "MachineObservationEarliestDateMachineObservationEndDayOfYear",
-    "MachineObservationEventDateMachineObservationEventTime",
-    "MachineObservationLatestDateMachineObservationMonth",
-    "MachineObservationStartDayOfYearMachineObservationVerbatimEventDate",
-    "MachineObservationYearManagedFromLastModifyDate",
-    "ManifestReferenceLastModifyDate",
-    "ManufactureDateManufactureDate1",
-    "ManufactureDate2",
-    "MaterialAbsoluteDurationMaterialEndTimecodeOffset",
-    "MeasurementDeterminedDate",
-    "MediaCreateDateMediaModifyDate",
-    "MediaOriginalBroadcastDateTime",
-    "MetadataDateMetadataLastEdited",
-    "MetadataModDate",
-    "MinoltaDate",
-    "MinoltaTime",
-    "ModDateModificationDate",
-    "ModifyDate",
-    "Month",
-    "MonthDayCreated",
-    "MoonPhase",
-    "NikonDateTime",
-    "NowON1_SettingsMetadataCreated",
-    "ON1_SettingsMetadataModifiedON1_SettingsMetadataTimestamp",
-    "ObjectCountryCodingMethodDate",
-    "ObservationDateObservationDateEnd",
-    "ObservationTime",
-    "ObservationTimeEnd",
-    "OffSaleDateDateOffsetTime",
-    "OffsetTimeDigitized",
-    "OffsetTimeOriginal",
-    "OnSaleDateDateOptionEndDate",
-    "OriginalCreateDateTime",
-    "OriginalReleaseTime",
-    "OriginalReleaseYearOtherDate1",
-    "OtherDate2",
-    "OtherDate3",
-    "PDBCreateDate",
-    "PDBModifyDatePackageLastModifyDate",
-    "PanasonicDateTime",
-    "PatientBirthDate",
-    "PaymentDueDateTimePhysicalMediaLength",
-    "PlanePoseTimestamp",
-    "PoseTimestamp",
-    "PowerUpTime",
-    "PreviewDatePreviewDateTime",
-    "ProducedDate",
-    "ProductionDate",
-    "ProfileDateTimePublicationDateDate",
-    "PublicationDisplayDateDate",
-    "PublicationEventDatePublishDate",
-    "PublishDateStart",
-    "RecordedDate",
-    "RecordingTime",
-    "RecordingTimeDayRecordingTimeMonth",
-    "RecordingTimeYear",
-    "RecordingTimeYearMonthRecordingTimeYearMonthDay",
-    "RecurrenceDateTimes",
-    "RecurrenceRule",
-    "ReelTimecodeReferenceDate",
-    "RegionInfoDateRegionsValid",
-    "RegisterCreationTimeRegisterItemStatusChangeDateTime",
-    "RegisterReleaseDateTime",
-    "RegisterUserTimeRelationshipEstablishedDate",
-    "ReleaseDate",
-    "ReleaseDateDay",
-    "ReleaseDateMonthReleaseDateYear",
-    "ReleaseDateYearMonth",
-    "ReleaseDateYearMonthDay",
-    "ReleaseTimeRenditionOfLastModifyDate",
-    "RevisionDate",
-    "RicohDate",
-    "RightsStartDateTimeRightsStopDateTime",
-    "RootDirectoryCreateDate",
-    "SMPTE12MUserDateTimeSMPTE309MUserDateTime",
-    "SampleDateTime",
-    "ScanDate",
-    "ScanSoftwareRevisionDateSeriesDateTime",
-    "SettingDateTime",
-    "ShotDate",
-    "SigningDate",
-    "SonyDateTimeSonyDateTime2",
-    "SourceDate",
-    "SourceModified",
-    "StartTime",
-    "StartTimecodeStartTimecodeRelativeToReference",
-    "StorageFormatDate",
-    "StorageFormatTimeStudyDateTime",
-    "SubSecCreateDate",
-    "SubSecDateTimeOriginal",
-    "SubSecModifyDateSubSecTime",
-    "SubSecTimeDigitized",
-    "SubSecTimeOriginal",
-    "TaggingTimeTemporalCoverageFrom",
-    "TemporalCoverageTo",
-    "ThumbnailDateTime",
-    "Time",
-    "Time1",
-    "Time2TimeAndDate",
-    "TimeCreated",
-    "TimeSent",
-    "TimeStamp",
-    "TimeStamp1",
-    "TimeStampList",
-    "TimeZoneTimeZone2",
-    "TimeZoneCity",
-    "TimeZoneCode",
-    "TimeZoneDST",
-    "TimeZoneInfo",
-    "TimeZoneURLTimecodeCreationDateTime",
-    "TimecodeEndDateTime",
-    "TimecodeEventEndDateTimeTimecodeEventStartDateTime",
-    "TimecodeLastModifyDate",
-    "TimecodeModifyDateTimecodeStartDateTime",
-    "TimezoneID",
-    "TimezoneName",
-    "TimezoneOffsetFromTimezoneOffsetTo",
-    "TrackCreateDate",
-    "TrackModifyDate",
-    "TransformCreateDateTransformModifyDate",
-    "UTCEndDateTime",
-    "UTCEventEndDateTime",
-    "UTCEventStartDateTimeUTCInstantDateTime",
-    "UTCLastModifyDate",
-    "UTCStartDateTime",
-    "UTCUserDateTimeUnknownDate",
-    "VersionCreateDate",
-    "VersionModifyDate",
-    "VersionsEventWhenVersionsModifyDate",
-    "VideoModDate",
-    "VolumeCreateDate",
-    "VolumeEffectiveDateVolumeExpirationDate",
-    "VolumeModifyDate",
-    "WorldTimeLocationXAttrAppleMailDateReceived",
-    "XAttrAppleMailDateSent",
-    "XAttrLastUsedDateXAttrMDItemDownloadedDate",
-    "Year",
-    "YearCreated",
-    "ZipModifyDate",
-]
+from massRenamer.massRenamerClasses import MediaFile, isTagATimeTag
 
 
 class SunnyBeach(StrEnum):
@@ -294,74 +15,74 @@ class SunnyBeach(StrEnum):
     darkOrange = "#f2b2a2"
 
 
-class showMediaFileListModel(QAbstractListModel):
-    """A model to show a list of MediaFiles. Initially to show the list of files that can be renamed, but can be also
-    used to show the proposed renamed files.
+# class showMediaFileListModel(QAbstractListModel):
+#     """A model to show a list of MediaFiles. Initially to show the list of files that can be renamed, but can be also
+#     used to show the proposed renamed files.
 
-    Args:
-        QAbstractListModel (_type_): _description_
+#     Args:
+#         QAbstractListModel (_type_): _description_
 
-    Returns:
-        _type_: _description_
-    """
+#     Returns:
+#         _type_: _description_
+#     """
 
-    class Filter(IntEnum):
-        dated = 1
-        dateless = 2
-        newName = 3
+#     class Filter(IntEnum):
+#         dated = 1
+#         dateless = 2
+#         newName = 3
 
-    dated = Filter.dated
-    dateless = Filter.dateless
-    newName = Filter.newName
+#     dated = Filter.dated
+#     dateless = Filter.dateless
+#     newName = Filter.newName
 
-    def __init__(self, mediaFileList: list[MediaFile] | None, type: Filter = dated):
-        super().__init__()
-        self.files: list[str] = []
-        self.type = type
-        if mediaFileList:
-            for mediaFile in mediaFileList:
-                if self.type == showMediaFileListModel.dated:
-                    if mediaFile.dateTime:
-                        self.files.append(str(mediaFile.fileName))
-                        # TODO: show sidecar
-                elif self.type == showMediaFileListModel.newName:
-                    # To make sure we get the same items that in the dated list, use the "has date"
-                    # condition (which makes sense, as it's the main condition to have a new name)
-                    if mediaFile.dateTime:
-                        self.files.append(str(mediaFile.newName))
-                        # TODO: show sidecar
-                elif self.type == showMediaFileListModel.dateless:
-                    if not mediaFile.dateTime:
-                        self.files.append(str(mediaFile.fileName))
-                else:
-                    raise ValueError("Wrong type of filter {type}")
+#     def __init__(self, mediaFileList: list[MediaFile] | None, type: Filter = dated):
+#         super().__init__()
+#         self.files: list[str] = []
+#         self.type = type
+#         if mediaFileList:
+#             for mediaFile in mediaFileList:
+#                 if self.type == showMediaFileListModel.dated:
+#                     if mediaFile.dateTime:
+#                         self.files.append(str(mediaFile.fileName))
+#                         # TODO: show sidecar
+#                 elif self.type == showMediaFileListModel.newName:
+#                     # To make sure we get the same items that in the dated list, use the "has date"
+#                     # condition (which makes sense, as it's the main condition to have a new name)
+#                     if mediaFile.dateTime:
+#                         self.files.append(str(mediaFile.newName))
+#                         # TODO: show sidecar
+#                 elif self.type == showMediaFileListModel.dateless:
+#                     if not mediaFile.dateTime:
+#                         self.files.append(str(mediaFile.fileName))
+#                 else:
+#                     raise ValueError("Wrong type of filter {type}")
 
-    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
-        return len(self.files)
+#     def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+#         return len(self.files)
 
-    def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
-        if role == Qt.ItemDataRole.DisplayRole and index.isValid():
-            return self.files[index.row()]
-        # TODO: if sidecar, change background colour
-        return None
+#     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+#         if role == Qt.ItemDataRole.DisplayRole and index.isValid():
+#             return self.files[index.row()]
+#         # TODO: if sidecar, change background colour
+#         return None
 
-    def replaceListOfFiles(self, newMediaFileList: list[MediaFile]) -> None:
-        self.files = []
-        for mediaFile in newMediaFileList:
-            if self.type == showMediaFileListModel.dated:
-                if mediaFile.dateTime:
-                    self.files.append(str(mediaFile.fileName))
-            elif self.type == showMediaFileListModel.newName:
-                # To make sure we get the same items that in the dated list, use the "has date"
-                # condition (which makes sense, as it's the main condition to have a new name)
-                if mediaFile.dateTime:
-                    self.files.append(str(mediaFile.newName))
-            elif self.type == showMediaFileListModel.dateless:
-                if not mediaFile.dateTime:
-                    self.files.append(str(mediaFile.fileName))
-            else:
-                raise ValueError("Wrong type of filter {type}")
-        self.layoutChanged.emit()
+#     def replaceListOfFiles(self, newMediaFileList: list[MediaFile]) -> None:
+#         self.files = []
+#         for mediaFile in newMediaFileList:
+#             if self.type == showMediaFileListModel.dated:
+#                 if mediaFile.dateTime:
+#                     self.files.append(str(mediaFile.fileName))
+#             elif self.type == showMediaFileListModel.newName:
+#                 # To make sure we get the same items that in the dated list, use the "has date"
+#                 # condition (which makes sense, as it's the main condition to have a new name)
+#                 if mediaFile.dateTime:
+#                     self.files.append(str(mediaFile.newName))
+#             elif self.type == showMediaFileListModel.dateless:
+#                 if not mediaFile.dateTime:
+#                     self.files.append(str(mediaFile.fileName))
+#             else:
+#                 raise ValueError("Wrong type of filter {type}")
+#         self.layoutChanged.emit()
 
 
 class toRenameModel(QAbstractTableModel):
@@ -371,7 +92,7 @@ class toRenameModel(QAbstractTableModel):
         QAbstractTableModel (_type_): ???
     """
 
-    def __init__(self, toRenameList: list[tuple[str, str]] | None = None) -> None:
+    def __init__(self, mediaFileList: list[MediaFile] | None = None) -> None:
         """Inits the class
 
         Args:
@@ -381,7 +102,12 @@ class toRenameModel(QAbstractTableModel):
         """
         self.columns = ["Current Filename", "Proposed New Name"]
         super().__init__()
-        self.toRenameList: list[tuple[str, str]] = toRenameList or []
+
+        self.toRenameList: list[tuple[str, str]] = []
+        if mediaFileList:
+            for instance in mediaFileList:
+                if instance.newName:
+                    self.toRenameList.append((str(instance.fileName), str(instance.newName)))
 
     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
         if role == Qt.ItemDataRole.DisplayRole:
@@ -389,7 +115,7 @@ class toRenameModel(QAbstractTableModel):
         # TODO: If has sidecar, paint background?
         return None
 
-    def headerData(self, section: int, orientation: Qt.Orientation, role: int = ...):
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole):
         # for setting columns name
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
             return f"{self.columns[section]}"
@@ -400,8 +126,11 @@ class toRenameModel(QAbstractTableModel):
     def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return 2
 
-    def replaceListOfFiles(self, newToRenameList: list[tuple[str, str]]) -> None:
-        self.toRenameList = newToRenameList
+    def replaceListOfFiles(self, mediaFileList: list[MediaFile]) -> None:
+        self.toRenameList = []
+        for instance in mediaFileList:
+            if instance.newName:
+                self.toRenameList.append((str(instance.fileName), str(instance.newName)))
         self.layoutChanged.emit()
 
 
@@ -412,7 +141,7 @@ class showDatelessModel(QAbstractTableModel):
         QAbstractTableModel (_type_): ???
     """
 
-    def __init__(self, datelessItemsList: list[tuple[str, str]] | None = None) -> None:
+    def __init__(self, mediaFileList: list[MediaFile] | None = None) -> None:
         """Inits the class
 
         Args:
@@ -422,14 +151,18 @@ class showDatelessModel(QAbstractTableModel):
 
         self.columns = ["Filename", "Proposed New Date"]
         super().__init__()
-        self.datelessItemsList: list[tuple[str, str]] = datelessItemsList or []
+        self.datelessItemsList: list[tuple[str, str]] = []
+        if mediaFileList:
+            for instance in mediaFileList:
+                if not instance.dateTime:
+                    self.datelessItemsList.append((str(instance.fileName), ""))
 
     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
         if role == Qt.ItemDataRole.DisplayRole:
             return self.datelessItemsList[index.row()][index.column()]
         return None
 
-    def headerData(self, section: int, orientation: Qt.Orientation, role: int = ...):
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole):
         # for setting columns name
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
             return f"{self.columns[section]}"
@@ -440,8 +173,12 @@ class showDatelessModel(QAbstractTableModel):
     def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return 2
 
-    def replaceListOfFiles(self, newDatelessFilesList: list[tuple[str, str]]) -> None:
-        self.datelessItemsList = newDatelessFilesList
+    def replaceListOfFiles(self, mediaFileList: list[MediaFile]) -> None:
+        self.datelessItemsList = []
+        for instance in mediaFileList:
+            if not instance.dateTime:
+                self.datelessItemsList.append((str(instance.fileName), ""))
+
         self.layoutChanged.emit()
 
 
@@ -453,9 +190,14 @@ class fixDateModel(QAbstractTableModel):
         QAbstractTableModel (_type_): ???
     """
 
-    def __init__(self, dateTagList: list[tuple[str, str]] | None = None) -> None:
+    def __init__(self, mediaFile: MediaFile | None = None) -> None:
         super().__init__()
-        self.dateTagList = dateTagList or []
+        self.dateTagList: list[tuple[str, str]] = []
+        if mediaFile and mediaFile.EXIFTags:  # if the dict has tags
+            # Show the date tags for this file
+            for tag in mediaFile.EXIFTags:
+                if isTagATimeTag(tag):
+                    self.dateTagList.append((tag, mediaFile.EXIFTags[tag]))
 
     def data(
         self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole
@@ -483,43 +225,14 @@ class fixDateModel(QAbstractTableModel):
     def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return 2
 
-    def replaceListOfTags(self, newDateTagList: list[tuple[str, str]]) -> None:
-        self.dateTagList = newDateTagList
+    def replaceListOfTags(self, mediaFile: MediaFile) -> None:
+        self.dateTagList = []
+        if mediaFile.EXIFTags:  # if the dict has tags
+            # Show the date tags for this file
+            for tag in mediaFile.EXIFTags:
+                if isTagATimeTag(tag):
+                    self.dateTagList.append((tag, mediaFile.EXIFTags[tag]))
         self.layoutChanged.emit()
-
-
-# TODO: Does this live here?
-def isTagATimeTag(tag: str) -> bool:
-    """Checks if the passed tag is one of the tags returned by -time:all
-
-    Args:
-        tag (str): the tag to check, as a string
-
-    Returns:
-        bool: true if it's in the -time:all shortcut, false otherwise
-    """
-    # Display data. We will filter the tags and display only the time-related ones. We have a list of time tags
-    # but they don't have group info, so we have to split after the semicolon in order to match them
-    # Split by the semicolon and take the second part
-    if tag:
-        tagGroup, separator, tagWithoutGroup = tag.partition(":")
-        if separator:
-            # If separator was found, the tag included group information
-            if tagWithoutGroup in TIME_TAGS_LIST:
-                return True
-            # One Corner Case is that System File tags ("System:FileModifyDate", "System:FileAccessDate",
-            # "System:FileCreateDate") are not in the list (as they might not be treated as EXIF tags)
-            # Same for our "Inferred" dates
-            if tagGroup == "System":
-                return True
-            elif tagGroup == "Inferred":
-                return True
-        else:
-            # The tag might have been passed without a group, let's check it nevertheless
-            if tag in TIME_TAGS_LIST:
-                return True
-    # Otherwise, it's not a time tag
-    return False
 
 
 class TagListModel(QAbstractListModel):

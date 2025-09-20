@@ -15,7 +15,7 @@ from PySide6.QtCore import Slot, QProcess, Qt, QModelIndex
 from PySide6.QtGui import QPixmap
 from PIL import Image
 from PIL.ImageQt import ImageQt
-from pillow_heif import register_heif_opener
+from pillow_heif import register_heif_opener  # pyright: ignore[reportUnknownVariableType, reportMissingTypeStubs]
 
 from ui.mainWindow import Ui_MainWindow
 from ui.mediaFileViewer import Ui_MediaFileViewer
@@ -34,7 +34,6 @@ from models import (
     toRenameModel,
     showDatelessModel,
     fixDateModel,
-    isTagATimeTag,
     TagListModel,
     ValueListModel,
     FileListModel,
@@ -235,17 +234,16 @@ class Window(QWidget, Ui_MainWindow):
 
         It also checks for elements without a date and adds them to the Fix Dates Tab.
         """
+
+        ### Get a list of MediaFile from a list of tags and sort it by filename (natural sorting)
         tagsDictList = loadExifToolTagsFromFile(Path(self._jsonFile))
 
         self.mediaFileList = generateSortedMediaFileList(tagsDictList)
 
+        ### Update Models
+        # Files to rename: check in which ones we could get a new name with the info we have
         findNewNames(self.mediaFileList, Path(self.currDirTxt.text()))
-
-        renameTable: list[tuple[str, str]] = []
-        for instance in self.mediaFileList:
-            if instance.newName:
-                renameTable.append((str(instance.fileName), str(instance.newName)))
-        self.toRenameModel.replaceListOfFiles(renameTable)
+        self.toRenameModel.replaceListOfFiles(self.mediaFileList)
 
         # Find Dateless, infer their date from neighbours.
         # Build a list of dateless items with their index in the mediaFileListGet, then get their left and right
@@ -262,13 +260,8 @@ class Window(QWidget, Ui_MainWindow):
                 if inferredDates[1]:
                     self.mediaFileList[datelessItem[0]].EXIFTags["Inferred:RightDate"] = inferredDates[1]
 
-        # Now update the dateless View. I guess I could do something smart to use the previous list for this too, but
-        # it takes microseconds to get a new list. This time of tupes of filenames of dateless items, and empty strings
-        # that will contain the selected proposed new date for the item, which will be filled through the UI
-        datelessFiles: list[tuple[str, str]] = [
-            (str(item.fileName), "") for item in self.mediaFileList if not item.dateTime
-        ]
-        self.showDatelessModel.replaceListOfFiles(datelessFiles)
+        # Update the files to infer new date model
+        self.showDatelessModel.replaceListOfFiles(self.mediaFileList)
 
         # Load the tags in the tag explorer
         self.tagModel.replaceListOfTags(self.mediaFileList)
@@ -390,15 +383,10 @@ class Window(QWidget, Ui_MainWindow):
         if instance:
             # If the selected item is in the list (it should!) then update the mediaViewer pane
             self._updateMediaFileViewerFromInstance(instance)
-            if instance.EXIFTags:  # if the dict has tags
-                # Show the date tags for this file
-                newList: list[tuple[str, str]] = []
-                for tag in instance.EXIFTags:
-                    if isTagATimeTag(tag):
-                        newList.append((tag, instance.EXIFTags[tag]))
-                self.fixDateModel.replaceListOfTags(newList)
-                # Clear the selection as it might be out of bounds in the new list
-                self.datesTableView.clearSelection()
+            # And update the fix dates model to show its date tags
+            self.fixDateModel.replaceListOfTags(instance)
+            # Clear the selection as it might be out of bounds in the new list
+            self.datesTableView.clearSelection()
             # And finally, if a date has been selected already, show it
             if str(instance.fileName) in self.selectedDates.keys():
                 self.dateChosenTxt.setText(self.selectedDates[str(instance.fileName)])
