@@ -45,6 +45,7 @@ from pathlib import Path
 from re import compile, search, match
 from logging import getLogger
 from collections import Counter
+from typing import Callable, Any
 
 from natsort import os_sorted
 from tzfpy import get_tz
@@ -368,6 +369,12 @@ GPS_TAGS_LIST: list[str] = [
     "GPSLongitudeRef",
     "GPSLongitude",
 ]
+
+# List of user comments tags, used to check iOS Screenshots
+USER_COMMENTS_TAGS_LIST: list[str] = [
+    "ExifIFD:UserComment",
+    "XMP-exif:UserComment",
+]
 ##
 # Compiled Regexes
 ##
@@ -625,7 +632,14 @@ class MediaFile:
                 # That's just too long
                 return "Olympus " + model
             elif make.lower() == "fujifilm":
+                # It's odd to see Fuji as Fujifilm, remove the "film" bit
                 return "Fuji " + model
+            elif model.lower() == "oneplus a5010":
+                # OnePlus adds the Make to the model, and uses the model number instead of the common name
+                return make + "5T"
+            elif make.lower() == "canon":
+                # Canon adds "Canon" to the model too, so make + model is "Canon Canon"
+                return model
             else:
                 return make + " " + model
 
@@ -638,9 +652,11 @@ class MediaFile:
         Returns:
             str | None: "Screenshot" if it's a iOS screenshot, None otherwise
         """
-        if "XMP-exif:UserComments" in self.EXIFTags.keys():
-            if self.EXIFTags["XMP-exif:UserComments"] == "Screenshot":
-                return "Screenshot"
+
+        for tag in USER_COMMENTS_TAGS_LIST:
+            if tag in self.EXIFTags.keys():
+                if self.EXIFTags[tag].lower() == "screenshot":
+                    return "iOS Screenshot"
         return None
 
     def isInstragram(self) -> str | None:
@@ -758,7 +774,9 @@ def loadExifToolTagsFromFile(inputFile: Path) -> list[dict[str, str]]:
 
 
 # NOTE: Tested
-def generateSortedMediaFileList(etData: list[dict[str, str]]) -> list[MediaFile]:
+def generateSortedMediaFileList(
+    etData: list[dict[str, str]], itemProcessedCallBack: Callable[[], None] | None = None
+) -> list[MediaFile]:
     """
     Creates a list of MediaFile objects from a list of dictionaries with tags comming from
     EXIFTool. The list is sorted by filename using natural sorting (as in "Windows Explorer Sorting")
@@ -766,8 +784,10 @@ def generateSortedMediaFileList(etData: list[dict[str, str]]) -> list[MediaFile]
     Args:
         etData (list[dict[str, str]): a list of dictionaries. Each dictionary is a collection of tags
         obtained from EXIFTool
+        itemProcessedCallBack: Callable (() -> None ) | None. If passed, a callback to call on each item processed
+        completion to indicate the progress.
 
-    Returns:
+     Returns:
         list[MediaFile]: a list of MediaFile objects, ready to be processed
     """
     mediaFileList: list[MediaFile] = []
@@ -781,6 +801,11 @@ def generateSortedMediaFileList(etData: list[dict[str, str]]) -> list[MediaFile]
             fileName.name.lower() not in DONT_PROCESS_EXTENSIONS
         ):
             mediaFileList.append(MediaFile.fromExifTags(entry))
+
+        # If we passed a callback, call it to mark the item as processed, even for those not processable, as they are
+        # in the list too (otherwise we would end up sort of item)
+        if itemProcessedCallBack:
+            itemProcessedCallBack()
 
     # Sorts the list based on the filename. This will help to infer dates based on
     # "neighbours" with date.
@@ -798,11 +823,13 @@ def getFilesInFolder(inputFolder: Path) -> int:
         int: total number of files that ExifTool can process
     """
     numFiles: int = 0
-    cmdFind: list[str | Path] = ["exiftool", "-listdir", "-r", inputFolder]
-    p = run(cmdFind, stdout=PIPE, stderr=PIPE, shell=True, text=True)
+    cmdFind: list[str | Path] = ["exiftool", "-listdir", "-r", '"' + str(inputFolder) + '"']
+    p = run(" ".join(cmdFind), stdout=PIPE, stderr=PIPE, shell=True, text=True)
     result = search("([0-9]*) image files read", p.stdout)
     if result:
         numFiles = int(result.group(1))
+    else:
+        module_logger.warning(f"Did not find files?\n\tCommand: {' '.join(str(x) for x in cmdFind)}\n\tOuput: {result}")
     return numFiles
 
 

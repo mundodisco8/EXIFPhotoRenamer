@@ -15,76 +15,6 @@ class SunnyBeach(StrEnum):
     darkOrange = "#f2b2a2"
 
 
-# class showMediaFileListModel(QAbstractListModel):
-#     """A model to show a list of MediaFiles. Initially to show the list of files that can be renamed, but can be also
-#     used to show the proposed renamed files.
-
-#     Args:
-#         QAbstractListModel (_type_): _description_
-
-#     Returns:
-#         _type_: _description_
-#     """
-
-#     class Filter(IntEnum):
-#         dated = 1
-#         dateless = 2
-#         newName = 3
-
-#     dated = Filter.dated
-#     dateless = Filter.dateless
-#     newName = Filter.newName
-
-#     def __init__(self, mediaFileList: list[MediaFile] | None, type: Filter = dated):
-#         super().__init__()
-#         self.files: list[str] = []
-#         self.type = type
-#         if mediaFileList:
-#             for mediaFile in mediaFileList:
-#                 if self.type == showMediaFileListModel.dated:
-#                     if mediaFile.dateTime:
-#                         self.files.append(str(mediaFile.fileName))
-#                         # TODO: show sidecar
-#                 elif self.type == showMediaFileListModel.newName:
-#                     # To make sure we get the same items that in the dated list, use the "has date"
-#                     # condition (which makes sense, as it's the main condition to have a new name)
-#                     if mediaFile.dateTime:
-#                         self.files.append(str(mediaFile.newName))
-#                         # TODO: show sidecar
-#                 elif self.type == showMediaFileListModel.dateless:
-#                     if not mediaFile.dateTime:
-#                         self.files.append(str(mediaFile.fileName))
-#                 else:
-#                     raise ValueError("Wrong type of filter {type}")
-
-#     def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
-#         return len(self.files)
-
-#     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
-#         if role == Qt.ItemDataRole.DisplayRole and index.isValid():
-#             return self.files[index.row()]
-#         # TODO: if sidecar, change background colour
-#         return None
-
-#     def replaceListOfFiles(self, newMediaFileList: list[MediaFile]) -> None:
-#         self.files = []
-#         for mediaFile in newMediaFileList:
-#             if self.type == showMediaFileListModel.dated:
-#                 if mediaFile.dateTime:
-#                     self.files.append(str(mediaFile.fileName))
-#             elif self.type == showMediaFileListModel.newName:
-#                 # To make sure we get the same items that in the dated list, use the "has date"
-#                 # condition (which makes sense, as it's the main condition to have a new name)
-#                 if mediaFile.dateTime:
-#                     self.files.append(str(mediaFile.newName))
-#             elif self.type == showMediaFileListModel.dateless:
-#                 if not mediaFile.dateTime:
-#                     self.files.append(str(mediaFile.fileName))
-#             else:
-#                 raise ValueError("Wrong type of filter {type}")
-#         self.layoutChanged.emit()
-
-
 class toRenameModel(QAbstractTableModel):
     """A model to show renameable files and their proposed new names
 
@@ -284,7 +214,7 @@ class ValueListModel(QAbstractListModel):
         return None
 
     def replaceListOfValues(self, newMediaFileList: list[MediaFile], newTag: str) -> None:
-        self.values = sorted({mf.EXIFTags.get(newTag) for mf in newMediaFileList if newTag in mf.EXIFTags})  # pyright: ignore[reportArgumentType]
+        self.values = sorted({str(mf.EXIFTags.get(newTag)) for mf in newMediaFileList if newTag in mf.EXIFTags})  # pyright: ignore[reportArgumentType]
         self.layoutChanged.emit()
 
 

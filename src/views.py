@@ -1,17 +1,14 @@
 """This module provides the RP Renamer main window."""
 
-# TODO: Add Tags to media viewer
-# TODO: format JSON?
-
 from enum import IntEnum
 from pathlib import Path
-from json import loads
+from json import loads, dumps
 from logging import getLogger, DEBUG
 from collections import deque
 
 
 from PySide6.QtWidgets import QWidget, QFileDialog, QDialog, QListWidgetItem, QHeaderView
-from PySide6.QtCore import Slot, QProcess, Qt, QModelIndex
+from PySide6.QtCore import Slot, QProcess, Qt, QModelIndex, Signal, QObject
 from PySide6.QtGui import QPixmap
 from PIL import Image
 from PIL.ImageQt import ImageQt
@@ -68,6 +65,18 @@ EXTRACT_ALL_TAGS_ARGS: list[str] = TAGS_TO_EXTRACT + [
 class CMDTYPE(IntEnum):
     SAVE_DATE = 0  # this exiftool command is the one that saves the date tags in the file
     RESCAN = 1  # this exiftool command is the one that rescans the tags to grab the new dates
+
+
+class UpdateProgressSignal(QObject):
+    """A Class with a single signal to update the Progress Bar
+
+    This class has a single signal whose only purpose is to be emitted to update the progress of the Progress Bar at the
+    bottom of the main window (on tag processing and during the MediaFile list creation).
+    This is the (best?) way to do it, as it makes sure that the main thread updates the GUI
+    (https://stackoverflow.com/questions/2806552/qprogressbar-not-showing-progress)
+    """
+
+    updateProgress = Signal(int)
 
 
 class Window(QWidget, Ui_MainWindow):
@@ -133,6 +142,11 @@ class Window(QWidget, Ui_MainWindow):
         self.valueView.clicked.connect(self.onValueSelected)
         self.fileView.clicked.connect(self.updateMediaFileViewer)
 
+        ## Progress bar
+        # Create an UpdateProgress signal and connect it to the setValue slot of the progress bar
+        self.updateProgressSignal = UpdateProgressSignal()
+        self.updateProgressSignal.updateProgress.connect(self.progressBar.setValue)
+
         ### Non-UI Stuff
         # Get root logger and set the emojiFormatter
         rootLogger = getLogger()
@@ -143,12 +157,6 @@ class Window(QWidget, Ui_MainWindow):
 
     def _setupUI(self):
         self.setupUi(self)  # pyright: ignore[reportUnknownMemberType]
-
-    @Slot()
-    def updateProgressBar(self) -> None:
-        """_summary_"""
-        currVal = self.progressBar.value()
-        self.progressBar.setValue(currVal + 1)
 
     ### Open Files / Folder
 
@@ -178,6 +186,9 @@ class Window(QWidget, Ui_MainWindow):
         self.progressBarTxt.setText("Countnig processsable files in the folder...")
         self.repaint()  # need this to force the change in UI before we hit the UI in the event loop
         numFiles = getFilesInFolder(Path(self._selDir))
+        if numFiles == 0:
+            # Something went wrong with the file processing
+            return
         self.progressBar.setFormat("Processed %v / %m...")
         self.progressBar.setRange(0, numFiles)
         self.progressBar.setValue(0)
@@ -206,8 +217,7 @@ class Window(QWidget, Ui_MainWindow):
                 line.rstrip()
                 self.etExtractedTagsAsJSON += line
                 if "SourceFile" in line:
-                    self.progressBar.setValue(self.progressBar.value() + 1)
-                    self.repaint()
+                    self.bumpProgressBar()
 
     @Slot()
     def handleFinishedTagParser(self) -> None:
@@ -228,6 +238,10 @@ class Window(QWidget, Ui_MainWindow):
         else:
             self.progressBarTxt.setText("We didn't save the tags :(")
 
+    def bumpProgressBar(self) -> None:
+        """Emits a updateProgress signal to indicate the Progress bar of its new value"""
+        self.updateProgressSignal.updateProgress.emit(self.progressBar.value() + 1)
+
     @Slot()
     def loadJSON(self) -> None:
         """Creates a sorted list of MediaFile instances from a list of dictionaries containing EXIFTool Tags
@@ -236,9 +250,13 @@ class Window(QWidget, Ui_MainWindow):
         """
 
         ### Get a list of MediaFile from a list of tags and sort it by filename (natural sorting)
+        self.progressBarTxt.setText("Building List of MediaFile items...")
         tagsDictList = loadExifToolTagsFromFile(Path(self._jsonFile))
+        self.progressBar.setRange(0, len(tagsDictList))
+        self.progressBar.setFormat("Processed %v / %m...")
 
-        self.mediaFileList = generateSortedMediaFileList(tagsDictList)
+        self.mediaFileList = generateSortedMediaFileList(tagsDictList, self.bumpProgressBar)
+        self.progressBarTxt.setText("List of MediaFile Generated")
 
         ### Update Models
         # Files to rename: check in which ones we could get a new name with the info we have
@@ -300,11 +318,13 @@ class Window(QWidget, Ui_MainWindow):
     def renameFiles(self) -> None:
         for mediaFile in self.mediaFileList:
             if mediaFile.newName:
-                if self.dryRunChkBox.checkState():
+                if self.dryRunChkBox.checkState() == Qt.CheckState.Checked:
                     logger.info(f"{mediaFile.fileName} -> {mediaFile.newName}")
                     if mediaFile.sidecar:
                         logger.warning(f"{mediaFile.sidecar} -> {mediaFile.newName.with_suffix('.aae')}")
                 else:
+                    if not mediaFile.newName.parent.is_dir():
+                        mediaFile.newName.parent.mkdir(parents=True)
                     mediaFile.fileName.rename(mediaFile.newName)
                     if mediaFile.sidecar:
                         mediaFile.sidecar.rename(mediaFile.newName.with_suffix(".aae"))
@@ -326,6 +346,7 @@ class Window(QWidget, Ui_MainWindow):
         self.mediaFileViewer.dateTimeTxt.setText(mediaFile.dateTime)
         self.mediaFileViewer.sidecarTxt.setText(str(mediaFile.sidecar))
         self.mediaFileViewer.sourceTxt.setText(mediaFile.source)
+        self.mediaFileViewer.tagsTxt.setPlainText(dumps(mediaFile.EXIFTags, indent=2))
         ext = mediaFile.fileName.suffix
         pixMap: QPixmap | None = None
         if ext.lower() in [".jpg", "jpeg", ".png", ".tiff", ".gif"]:
