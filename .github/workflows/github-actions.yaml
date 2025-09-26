@@ -5,9 +5,9 @@ name: Build BattSimGUI exe
 
 on:
   push:
-    branches: [ main, develop, testGithubActions ]
+    branches: [main, develop, testGithubActions/**]
   pull_request:
-    branches: [ main, develop, testGithubActions ]
+    branches: [main, develop, testGithubActions/**]
 
 permissions:
   contents: read
@@ -17,19 +17,67 @@ env:
   PIP_ROOT_USER_ACTION: ignore
 
 jobs:
-  build:
+  #   build:
+  #     runs-on: ubuntu-latest
+
+  #     steps:
+  #     - name: Clone Repo
+  #       uses: actions/checkout@v5
+
+  #     - name: Build the Exe
+  #     # The easiest way to build a exe for windows is to use this image.
+  #       run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-windows:latest
+
+  #     - name: Upload Artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: RenameGUI
+  #         path: dist/
+  test:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Clone Repo
-      uses: actions/checkout@v5
+      - name: Clone Repo
+        uses: actions/checkout@v4
 
-    - name: Build the Exe
-    # The easiest way to build a exe for windows is to use this image.
-      run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-windows:latest
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: RenameGUI
-        path: dist/
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r requirements.txt
+
+      - name: Test with pytest with coverage
+        run: python -m pytest --cov --cov-report=xml
+
+      - name: Lint with Ruff
+        uses: astral-sh/ruff-action@v3
+        continue-on-error: true # allow lint errors, for now
+
+      - name: Setup .NET Core # Required to execute ReportGenerator
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+          dotnet-quality: "ga"
+
+      - name: ReportGenerator
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.16
+        with:
+          reports: coverageReport/coverage.xml
+          targetdir: coverageReport/coverageReport
+          reporttypes: Html;MarkdownSummary
+          sourcedirs: src
+          historydir: coverageHistory
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CoverageReport
+          path: coverageReport/coverageReport
+
+      - name: Store Coverage History in PR Merge
+        if: github.event.pull_request.merged == true
+        run: echo "Hello"
