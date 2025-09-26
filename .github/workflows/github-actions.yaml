@@ -56,6 +56,9 @@ jobs:
 
       - name: Setup upterm session
         uses: lhotari/action-upterm@v1
+        with:
+          limit-access-to-actor: true # Restrict to the user who triggered the workflow
+          limit-access-to-users: mundodisco8,joel-felcana,Joel-Skarper # Specific authorized users only
 
       - name: Lint with Ruff
         uses: astral-sh/ruff-action@v3
