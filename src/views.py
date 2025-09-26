@@ -16,7 +16,7 @@ from pillow_heif import register_heif_opener  # pyright: ignore[reportUnknownVar
 
 from ui.mainWindow import Ui_MainWindow
 from ui.mediaFileViewer import Ui_MediaFileViewer
-from massRenamer.massRenamerClasses import (
+from MassRenamer.MassRenamerClasses import (
     IMAGE_EXTENSIONS,
     VIDEO_EXTENSIONS,
     MediaFile,

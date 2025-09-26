@@ -1,6 +1,6 @@
 from pytest import raises
 
-from src.massRenamer.massRenamerClasses import MediaFile, inferDateFromNeighbours
+from src.MassRenamer.MassRenamerClasses import MediaFile, inferDateFromNeighbours
 
 """
 This file contains tests for all the time/date handling methods of the massRenamer module

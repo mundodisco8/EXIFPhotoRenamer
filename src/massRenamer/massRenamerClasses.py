@@ -1,4 +1,4 @@
-"""Mass Renamer
+"""MassRenamerClasses
 This Module will grab all the image/video files in a folder and rename them.
 The images are sorted by dat and time of capture, and are renamed with the following pattern
 
@@ -581,8 +581,8 @@ class MediaFile:
         """
 
         # We are asking EXIFTool to return the dates in `YYYY-MM-DDThh:mm:ss⨦oo:00` format. If the tag has offset info,
-        # then obviously the offset is correct, but sometimes it returns +00:00 and then you have to check the presence of
-        # offset tags.
+        # then obviously the offset is correct, but sometimes it returns +00:00 and then you have to check the presence
+        # of offset tags.
         # From ExifTool (https://exiftool.org/TagNames/EXIF.html)
         #
         # 0x9003    DateTimeOriginal        string  ExifIFD     (date/time when original image was taken)
@@ -591,8 +591,8 @@ class MediaFile:
         # 0x9011    OffsetTimeOriginal      string  ExifIFD     (time zone for DateTimeOriginal)
         # 0x9012    OffsetTimeDigitized     string  ExifIFD     (time zone for CreateDate)
 
-        # Loop through the DATE_TAGS_TO_CHECK tags. They are sorted by preference. As soon as we have one, we can take that one
-        # as the date and break
+        # Loop through the DATE_TAGS_TO_CHECK tags. They are sorted by preference. As soon as we have one, we can take
+        # that one as the date and break
         date: ZonedDateTime | OffsetDateTime | PlainDateTime | None = None
         for tag in DATE_TAGS_TO_CHECK:
             if tag in exifToolData:
@@ -604,8 +604,9 @@ class MediaFile:
                     try:
                         date = PlainDateTime.parse_common_iso(exifToolData[tag]).assume_fixed_offset(0)
                     except ValueError:
-                        # At least in Quicktime tags, instead of deleting the tags, they are set to "0000:00:00 00:00:00"
-                        # which I think fails as that is not a "date" (whenever only accepts 1-1-1 first date)
+                        # At least in Quicktime tags, instead of deleting the tags, they are set to
+                        # "0000:00:00 00:00:00" which I think fails as that is not a "date" (whenever only accepts 1-1-1
+                        # first date)
                         if exifToolData[tag] == "0000:00:00 00:00:00":
                             # I could delete the tag, but I don't have access to the source, just a copy of it
                             pass
@@ -624,7 +625,8 @@ class MediaFile:
                     and "GPS:GPSLongitudeRef" in exifToolData.keys()
                     and "GPS:GPSLongitude" in exifToolData.keys()
                 ):
-                    # Latitude and longitude follow the "GGG deg MM' SS.00"" format, we have a regexp to capture the numbers
+                    # Latitude and longitude follow the "GGG deg MM' SS.00"" format, we have a regexp to capture the
+                    # numbers
                     longMatch = match(GPSCoordsRegEx, exifToolData["GPS:GPSLongitude"])
                     latMatch = match(GPSCoordsRegEx, exifToolData["GPS:GPSLatitude"])
                     longitude: float | None = None
@@ -649,8 +651,8 @@ class MediaFile:
 
                     if longitude and latitude:
                         myTZ = get_tz(longitude, latitude)
-                        # Type dance: convert to plain (to get rid of whatever offset it had), assume it belongs to tz, so
-                        # we have a time with the same "value" but on a different tz, and then to fixed offset (as we
+                        # Type dance: convert to plain (to get rid of whatever offset it had), assume it belongs to tz,
+                        # so we have a time with the same "value" but on a different tz, and then to fixed offset (as we
                         # can't store the timezone string in the tags)
                         date = date.to_tz(myTZ).to_fixed_offset()
                 else:
@@ -662,10 +664,10 @@ class MediaFile:
                             offsetHours = offsetStr[1:3]  # HH
                             offsetMin = offsetStr[4:]  # skip : and get MM
 
-                            # "Delete" the current offset by considering the date a plain date, and then create a new fixed offset
-                            # By passing the offset as a "TimeDelta" we can pass "fractional" offsets (01:30). To get a negative
-                            # offset, we have to pass "negative" hours and "negative" minutes (otherwise they cancel each other
-                            # out: -2h and +30 minutes is -01:30)
+                            # "Delete" the current offset by considering the date a plain date, and then create a new
+                            # fixed offset. By passing the offset as a "TimeDelta" we can pass "fractional" offsets
+                            # (01:30). To get a negative offset, we have to pass "negative" hours and "negative" minutes
+                            # (otherwise they cancel each other out: -2h and +30 minutes is -01:30)
                             offsetTimeDelta = TimeDelta(
                                 hours=int(offsetSign + offsetHours), minutes=int(offsetSign + offsetMin)
                             )
@@ -676,8 +678,8 @@ class MediaFile:
                             raise ValueError(
                                 f"In {exifToolData['SourceFile']}: Offset ('{offsetStr}') string has wrong length"
                             )
-                        # Type dance: convert to plain (to get rid of whatever offset it had), assume it has a certain fixed
-                        # offset, so we have a time with the same "value" but on a different offset.
+                        # Type dance: convert to plain (to get rid of whatever offset it had), assume it has a certain
+                        # fixed offset, so we have a time with the same "value" but on a different offset.
                         date = date.to_plain().assume_fixed_offset(offsetTimeDelta)
                 break
 
@@ -691,7 +693,10 @@ class MediaFile:
         Returns a string with the representation of the object: this string could be used to init an instance
         Example: MediaFile(fileName='Name', dateTime='1234-12-12 11-22-33+03:00', source="Apple iPhone 8")
         """
-        return f"{type(self).__name__}(fileName=Path('{self.fileName}'), dateTime='{self.dateTime}', EXIFTags={self.EXIFTags})"
+        return (
+            f"{type(self).__name__}(fileName=Path('{self.fileName}'), dateTime='{self.dateTime}', "
+            f"EXIFTags={self.EXIFTags})"
+        )
 
     def getNewName(self) -> None:
         self.newName = Path("")
@@ -917,7 +922,8 @@ def generateSortedMediaFileList(
         # The batch processor of ExifTool processes some files that are not images, so remove
         # known bad extensions. Get the filename and check its extension
         fileName: Path = Path(entry["SourceFile"])
-        # We have to check 'suffix' for files with name.extension ('example.aae'), and name for files with name starting with . ('.ds_store')
+        # We have to check 'suffix' for files with name.extension ('example.aae'), and name for files with name starting
+        # with . ('.ds_store')
         if (fileName.suffix.lower() not in DONT_PROCESS_EXTENSIONS) and (
             fileName.name.lower() not in DONT_PROCESS_EXTENSIONS
         ):
@@ -945,7 +951,7 @@ def getFilesInFolder(inputFolder: Path) -> int:
     """
     numFiles: int = 0
     cmdFind: list[str | Path] = ["exiftool", "-listdir", "-r", '"' + str(inputFolder) + '"']
-    p = run(" ".join(cmdFind), stdout=PIPE, stderr=PIPE, shell=True, text=True)
+    p = run(" ".join(str(x) for x in cmdFind), stdout=PIPE, stderr=PIPE, shell=True, text=True)
     result = search("([0-9]*) image files read", p.stdout)
     if result:
         numFiles = int(result.group(1))
@@ -1133,8 +1139,8 @@ def findNewNames(mediaFileList: list[MediaFile], parentFolder: Path) -> None:
 
     for source in availableSources:
         # Date Histogram:
-        # Find how many entries share the same date. We want to know this to figure out how many zeroes the file index will
-        # have, so they are naturally sorted in the file explorer
+        # Find how many entries share the same date. We want to know this to figure out how many zeroes the file index
+        # will have, so they are naturally sorted in the file explorer
         dateHistogram: dict[str, int] = Counter(
             OffsetDateTime.parse_common_iso(instance.dateTime).date().format_common_iso()
             for instance in mediaFileList

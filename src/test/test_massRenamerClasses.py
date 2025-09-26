@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pytest import MonkeyPatch
 
-from src.massRenamer.massRenamerClasses import MediaFile
+from src.MassRenamer.MassRenamerClasses import MediaFile
 
 """
 MediaFile.fromExifTags Class test:
@@ -121,11 +121,11 @@ def test_getSources_Quicktime():
     assert expectedSource == source
 
 
-# Screenshots are tagged as such in the User Comments tag ("XMP-exif:UserComments") at least in iPhones
+# Screenshots are tagged as such in the User Comments tag ("XMP-exif:UserComment") at least in iPhones
 def test_getSources_screenshot():
     ### Prepare
-    mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"XMP-exif:UserComments": "Screenshot"})
-    expectedSource = "Screenshot"
+    mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"XMP-exif:UserComment": "Screenshot"})
+    expectedSource = "iOS Screenshot"
 
     ### Run
     source = mediaFile.getFileSource()
@@ -152,7 +152,7 @@ def test_getSources_Instagram():
     assert expectedSource2 == source2
 
 
-# Screenshots are tagged as such in the User Comments tag ("XMP-exif:UserComments") at least in iPhones
+# Screenshots are tagged as such in the User Comments tag ("XMP-exif:UserComment") at least in iPhones
 def test_getSources_PicsArt():
     ### Prepare
     mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Software": "PicsArt"})
@@ -182,7 +182,7 @@ def test_getSources_testPrecedenceOrder():
             "IFD0:Model": "MyModel",
             "Keys:Make": "QuickTimeMaker",
             "Keys:Model": "QuicktimeModel",
-            "XMP-exif:UserComments": "Screenshot",
+            "XMP-exif:UserComment": "Screenshot",
             "XMP:Software": "Something Something Instagram",
             "IFD0:Software": "PicsArt",
         },
@@ -193,7 +193,7 @@ def test_getSources_testPrecedenceOrder():
         {
             "Keys:Make": "QuickTimeMaker",
             "Keys:Model": "QuicktimeModel",
-            "XMP-exif:UserComments": "Screenshot",
+            "XMP-exif:UserComment": "Screenshot",
             "XMP:Software": "Something Something Instagram",
             "IFD0:Software": "PicsArt",
         },
@@ -202,7 +202,7 @@ def test_getSources_testPrecedenceOrder():
         Path("A.jpg"),
         "2025-10-10T08:01:02+00:00",
         {
-            "XMP-exif:UserComments": "Screenshot",
+            "XMP-exif:UserComment": "Screenshot",
             "XMP:Software": "Something Something Instagram",
             "IFD0:Software": "PicsArt",
         },
@@ -229,7 +229,7 @@ def test_getSources_testPrecedenceOrder():
     )
     expectedSource1 = "MyMaker MyModel"
     expectedSource2 = "QuickTimeMaker QuicktimeModel"
-    expectedSource3 = "Screenshot"
+    expectedSource3 = "iOS Screenshot"
     expectedSource4 = "Instagram"
     expectedSource5 = "PicsArt"
     expectedSource6 = "WhatsApp"

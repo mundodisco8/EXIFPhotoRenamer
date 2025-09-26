@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.massRenamer.massRenamerClasses import MediaFile, findNewNames
+from src.MassRenamer.MassRenamerClasses import MediaFile, findNewNames
 
 
 """
@@ -127,14 +127,14 @@ def test_rename_differentSources():
         for _ in range(150)
     ]
     testMediaFileScreenshot = [
-        MediaFile(Path("MyFile.jpg"), "2025-01-02T01:02:03+00:00", {"XMP-exif:UserComments": "Screenshot"})
+        MediaFile(Path("MyFile.jpg"), "2025-01-02T01:02:03+00:00", {"XMP-exif:UserComment": "Screenshot"})
         for _ in range(150)
     ]
     testMediaFileList = testMediaFileMyMaker + testMediaFileScreenshot
     expectedName0 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 001.jpg")
     expectedName14 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 015.jpg")
-    expectedNameFirstScreenShot = Path("test/Screenshot/2025-01-02 Screenshot 001.jpg")
-    expectedNameLast = Path("test/Screenshot/2025-01-02 Screenshot 150.jpg")
+    expectedNameFirstScreenShot = Path("test/iOS Screenshot/2025-01-02 iOS Screenshot 001.jpg")
+    expectedNameLast = Path("test/iOS Screenshot/2025-01-02 iOS Screenshot 150.jpg")
 
     ### Run
     findNewNames(testMediaFileList, Path("test"))

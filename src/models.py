@@ -3,7 +3,7 @@ from enum import StrEnum
 from PySide6.QtCore import Qt, QAbstractListModel, QAbstractTableModel, QModelIndex, QPersistentModelIndex
 from PySide6.QtGui import QColor, QFont
 
-from massRenamer.massRenamerClasses import MediaFile, isTagATimeTag
+from MassRenamer.MassRenamerClasses import MediaFile, isTagATimeTag
 
 
 class SunnyBeach(StrEnum):
