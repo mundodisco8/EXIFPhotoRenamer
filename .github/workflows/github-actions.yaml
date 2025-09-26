@@ -36,6 +36,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    permissions:
+      # Enable writing for the checkout of the coverage history
+      contents: write
+
     steps:
       - name: Clone Repo
         uses: actions/checkout@v4
