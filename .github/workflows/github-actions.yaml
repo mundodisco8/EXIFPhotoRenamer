@@ -17,22 +17,23 @@ env:
   PIP_ROOT_USER_ACTION: ignore
 
 jobs:
-  #   build:
-  #     runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
 
-  #     steps:
-  #     - name: Clone Repo
-  #       uses: actions/checkout@v5
+    steps:
+      - name: Clone Repo
+        uses: actions/checkout@v5
 
-  #     - name: Build the Exe
-  #     # The easiest way to build a exe for windows is to use this image.
-  #       run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-windows:latest
+      - name: Build the Exe
+        # The easiest way to build a exe for windows is to use this image.
+        run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-windows:latest
 
-  #     - name: Upload Artifact
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: RenameGUI
-  #         path: dist/
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RenameGUI
+          path: dist/
+
   test:
     runs-on: ubuntu-latest
 
@@ -84,14 +85,14 @@ jobs:
           path: coverageReport/coverageReport
 
       - name: Store Coverage History in PR Merge
-        # if: github.event.pull_request.merged == true
+        if: github.event.pull_request.merged == true
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: "Add Coverage History"
           file_pattern: "coverageHistory/*"
 
-      - name: Setup upterm session
-        uses: owenthereal/action-upterm@v1
-        with:
-          limit-access-to-actor: true # Restrict to the user who triggered the workflow
-          limit-access-to-users: mundodisco8,joel-felcana,Joel-Skarper # Specific authorized users only
+        # # - name: Setup upterm session
+        # #   uses: owenthereal/action-upterm@v1
+        # #   with:
+        # #     limit-access-to-actor: true # Restrict to the user who triggered the workflow
+        # #     limit-access-to-users: mundodisco8,joel-felcana,Joel-Skarper # Specific authorized users only

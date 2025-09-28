@@ -35,7 +35,6 @@ def test_MediaFile_repr():
         "ExifIFD:CreateDate": "1234-12-12T11:22:33",
     }
     sourceInstance = MediaFile.fromExifTags(exifData)
-    print(sourceInstance.__repr__())
     testInstance = eval(sourceInstance.__repr__())
     assert isinstance(testInstance, type(sourceInstance))
     assert testInstance.fileName == Path("fakeFile.jpg")
