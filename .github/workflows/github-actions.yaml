@@ -35,12 +35,16 @@ jobs:
       #       name: RenameGUI
       #       path: dist/
 
-      #   - name: Calculate short SHA
-      #     run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-      #     id: calc_sha
+      - name: Calculate short SHA
+        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        id: calc_sha
 
-      #   - name: Use short SHA
-      #     run: 'echo "Short SHA: ${{ steps.calc_sha.outputs.short_sha }}"'
+      - name: Use short SHA
+        run: 'echo "Short SHA: ${{ steps.calc_sha.outputs.short_sha }}"'
+
+      - name: Create "Changelog"
+        run: echo "## Nightly Release\nRelease created with the latest commit from develop with hash \`${GITHUB_SHA::7}\` at $(date)\nMake sure that's the latest commit available and the one you want to use. Otherwise, use a ttagged release (with \`vX.Y.Z\`)" > changelog.md
+
       - name: Zip
         run: |
           sudo apt update
@@ -62,6 +66,7 @@ jobs:
           #   prerelease: true
           files: ReleaseThis.zip
           name: "ExifRenamer-Develop"
+          body-path: changelog.md
 
   #   - name: Setup upterm session
   #     uses: owenthereal/action-upterm@v1
