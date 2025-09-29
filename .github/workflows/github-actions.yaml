@@ -60,7 +60,7 @@ jobs:
           #   prerelease: true
           files: ReleaseThis.zip
           name: "ExifRenamer-Develop"
-          body-path: changelog.md
+          body_path: changelog.md
 
       # - name: Setup upterm session
       # uses: owenthereal/action-upterm@v1
