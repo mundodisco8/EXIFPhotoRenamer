@@ -43,7 +43,10 @@ jobs:
         run: 'echo "Short SHA: ${{ steps.calc_sha.outputs.short_sha }}"'
 
       - name: Create "Changelog"
-        run: echo "## Nightly Release\nRelease created with the latest commit from develop with hash \`${GITHUB_SHA::7}\` at $(date)\nMake sure that's the latest commit available and the one you want to use. Otherwise, use a ttagged release (with \`vX.Y.Z\`)" > changelog.md
+        run: |
+          echo "## Nightly Release" >> changelog.md
+          echo "Release created with the latest commit from develop with hash \`${GITHUB_SHA::7}\` at $(date)" >> changelog.md
+          echo "Make sure that's the latest commit available and the one you want to use. Otherwise, use a ttagged release (with \`vX.Y.Z\`)" >> changelog.md
 
       - name: Zip
         run: |
