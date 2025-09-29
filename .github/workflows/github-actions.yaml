@@ -45,7 +45,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install zip
-          zip -r ReleaseThis.zip src
+          zip -r ReleaseThis.zip src coverageHistory
 
       #   - name: Setup upterm session
       #     uses: owenthereal/action-upterm@v1
