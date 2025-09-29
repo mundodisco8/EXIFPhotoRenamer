@@ -51,12 +51,6 @@ jobs:
           sudo apt install zip
           zip -r ReleaseThis.zip src coverageHistory
 
-      #   - name: Setup upterm session
-      #     uses: owenthereal/action-upterm@v1
-      #     with:
-      #       limit-access-to-actor: true # Restrict to the user who triggered the workflow
-      #       limit-access-to-users: mundodisco8,JoelSantosRico,Joel-Skarper # Specific authorized users only
-
       - name: Publish Nigthly
         # If we are mergint the PR, publish a Release with the current artifact
         # if: github.event.pull_request.merged == true
@@ -68,11 +62,11 @@ jobs:
           name: "ExifRenamer-Develop"
           body-path: changelog.md
 
-  #   - name: Setup upterm session
-  #     uses: owenthereal/action-upterm@v1
-  #     with:
-  #       limit-access-to-actor: true # Restrict to the user who triggered the workflow
-  #       limit-access-to-users: mundodisco8,JoelSantosRico,Joel-Skarper # Specific authorized users only
+      # - name: Setup upterm session
+      # uses: owenthereal/action-upterm@v1
+      # with:
+      #   limit-access-to-actor: true # Restrict to the user who triggered the workflow
+      #   limit-access-to-users: mundodisco8,JoelSantosRico,Joel-Skarper # Specific authorized users only
 #   test:
 #     runs-on: ubuntu-latest
 
