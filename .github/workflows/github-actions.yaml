@@ -47,7 +47,7 @@ jobs:
         run: |
           cd dist
           zip -r ExifRenamer.zip *
-          move ExifRenamer.zip ../
+          mv ExifRenamer.zip ../
           cd ..
 
       - name: Publish Nigthly
