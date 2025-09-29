@@ -47,6 +47,7 @@ jobs:
         run: |
           cd dist
           zip -r ExifRenamer.zip *
+          cd ..
 
       - name: Publish Nigthly
         # If we are mergint the PR, publish a Release with the current artifact
@@ -55,7 +56,7 @@ jobs:
         with:
           draft: true
           #   prerelease: true
-          files: dist/**
+          files: ExifRenamer.zip
           name: "ExifRenamer-Develop"
           body_path: changelog.md
 
@@ -64,65 +65,65 @@ jobs:
       # with:
       #   limit-access-to-actor: true # Restrict to the user who triggered the workflow
       #   limit-access-to-users: mundodisco8,JoelSantosRico,Joel-Skarper # Specific authorized users only
-#   test:
-#     runs-on: ubuntu-latest
+  test:
+    runs-on: ubuntu-latest
 
-#     permissions:
-#       # Enable writing for the checkout of the coverage history
-#       contents: write
+    permissions:
+      # Enable writing for the checkout of the coverage history
+      contents: write
 
-#     steps:
-#       - name: Clone Repo
-#         uses: actions/checkout@v4
+    steps:
+      - name: Clone Repo
+        uses: actions/checkout@v4
 
-#       - name: Set up Python
-#         uses: actions/setup-python@v6
-#         with:
-#           python-version: "3.13"
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
 
-#       - name: Install dependencies
-#         run: |
-#           python -m pip install --upgrade pip setuptools wheel
-#           python -m pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r requirements.txt
 
-#       - name: Test with pytest with coverage
-#         run: python -m pytest --cov --cov-report=xml
-#         continue-on-error: true
+      - name: Test with pytest with coverage
+        run: python -m pytest --cov --cov-report=xml
+        continue-on-error: true
 
-#       - name: Lint with Ruff
-#         uses: astral-sh/ruff-action@v3
-#         continue-on-error: true # allow lint errors, for now
+      - name: Lint with Ruff
+        uses: astral-sh/ruff-action@v3
+        continue-on-error: true # allow lint errors, for now
 
-#       - name: Setup .NET Core # Required to execute ReportGenerator
-#         uses: actions/setup-dotnet@v4
-#         with:
-#           dotnet-version: 8.x
-#           dotnet-quality: "ga"
+      - name: Setup .NET Core # Required to execute ReportGenerator
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+          dotnet-quality: "ga"
 
-#       - name: ReportGenerator
-#         uses: danielpalme/ReportGenerator-GitHub-Action@5.4.16
-#         with:
-#           reports: coverageReport/coverage.xml
-#           targetdir: coverageReport/coverageReport
-#           reporttypes: Html;MarkdownSummary
-#           sourcedirs: src
-#           historydir: coverageHistory
+      - name: ReportGenerator
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.16
+        with:
+          reports: coverageReport/coverage.xml
+          targetdir: coverageReport/coverageReport
+          reporttypes: Html;MarkdownSummary
+          sourcedirs: src
+          historydir: coverageHistory
 
-#       - name: Upload Artifact
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: CoverageReport
-#           path: coverageReport/coverageReport
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CoverageReport
+          path: coverageReport/coverageReport
 
-#       - name: Store Coverage History in PR Merge
-#         if: github.event.pull_request.merged == true
-#         uses: stefanzweifel/git-auto-commit-action@v6
-#         with:
-#           commit_message: "Add Coverage History"
-#           file_pattern: "coverageHistory/*"
+      - name: Store Coverage History in PR Merge
+        if: github.event.pull_request.merged == true
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: "Add Coverage History"
+          file_pattern: "coverageHistory/*"
 
-#       # - name: Setup upterm session
-#       #   uses: owenthereal/action-upterm@v1
-#       #   with:
-#       #     limit-access-to-actor: true # Restrict to the user who triggered the workflow
-#       #     limit-access-to-users: mundodisco8,joel-felcana,Joel-Skarper # Specific authorized users only
+      # - name: Setup upterm session
+      #   uses: owenthereal/action-upterm@v1
+      #   with:
+      #     limit-access-to-actor: true # Restrict to the user who triggered the workflow
+      #     limit-access-to-users: mundodisco8,joel-felcana,Joel-Skarper # Specific authorized users only
