@@ -42,8 +42,8 @@ jobs:
       #     run: 'echo "Short SHA: ${{ steps.calc_sha.outputs.short_sha }}"'
       - name: Zip
         run: |
-          apt update
-          apt install zip
+          sudo apt update
+          sudo apt install zip
           zip -r ReleaseThis.zip src
 
       #   - name: Setup upterm session
