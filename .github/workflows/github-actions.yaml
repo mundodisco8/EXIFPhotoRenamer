@@ -24,6 +24,12 @@ jobs:
       - name: Clone Repo
         uses: actions/checkout@v5
 
+      - name: Setup upterm session
+        uses: owenthereal/action-upterm@v1
+        with:
+          limit-access-to-actor: true # Restrict to the user who triggered the workflow
+          limit-access-to-users: mundodisco8,joel-felcana,Joel-Skarper # Specific authorized users only
+
       - name: Build the Exe
         # The easiest way to build a exe for windows is to use this image.
         run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-windows:latest
@@ -91,8 +97,8 @@ jobs:
           commit_message: "Add Coverage History"
           file_pattern: "coverageHistory/*"
 
-        # # - name: Setup upterm session
-        # #   uses: owenthereal/action-upterm@v1
-        # #   with:
-        # #     limit-access-to-actor: true # Restrict to the user who triggered the workflow
-        # #     limit-access-to-users: mundodisco8,joel-felcana,Joel-Skarper # Specific authorized users only
+      # - name: Setup upterm session
+      #   uses: owenthereal/action-upterm@v1
+      #   with:
+      #     limit-access-to-actor: true # Restrict to the user who triggered the workflow
+      #     limit-access-to-users: mundodisco8,joel-felcana,Joel-Skarper # Specific authorized users only
