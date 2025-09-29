@@ -35,22 +35,18 @@ jobs:
           name: RenameGUI
           path: dist/
 
-      - name: Calculate short SHA
-        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-        id: calc_sha
-
-      - name: Use short SHA
-        run: 'echo "Short SHA: ${{ steps.calc_sha.outputs.short_sha }}"'
-
       - name: Create "Changelog"
+        # if: github.event.pull_request.merged == true
         run: |
           echo "## Nightly Release" >> changelog.md
           echo "Release created with the latest commit from develop with hash \`${GITHUB_SHA::7}\` at $(date)" >> changelog.md
           echo "Make sure that's the latest commit available and the one you want to use. Otherwise, use a ttagged release (with \`vX.Y.Z\`)" >> changelog.md
 
-      #   - name: Zip
-      #     run: |
-      #       zip -r ReleaseThis.zip src coverageHistory
+      - name: Zip
+        # if: github.event.pull_request.merged == true
+        run: |
+          cd dist
+          zip -r ExifRenamer.zip *
 
       - name: Publish Nigthly
         # If we are mergint the PR, publish a Release with the current artifact
@@ -59,7 +55,7 @@ jobs:
         with:
           draft: true
           #   prerelease: true
-          files: dist/
+          files: dist/**
           name: "ExifRenamer-Develop"
           body_path: changelog.md
 
