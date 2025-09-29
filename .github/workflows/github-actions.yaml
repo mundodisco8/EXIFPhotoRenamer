@@ -34,21 +34,22 @@ jobs:
           name: RenameGUI
           path: dist/
 
-      - name: Calculate short SHA
-        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-        id: calc_sha
+      #   - name: Calculate short SHA
+      #     run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      #     id: calc_sha
 
-      - name: Use short SHA
-        run: 'echo "Short SHA: ${{ steps.calc_sha.outputs.short_sha }}"'
+      #   - name: Use short SHA
+      #     run: 'echo "Short SHA: ${{ steps.calc_sha.outputs.short_sha }}"'
 
       - name: Publish Nigthly
         # If we are mergint the PR, publish a Release with the current artifact
         # if: github.event.pull_request.merged == true
         uses: softprops/action-gh-release@v2
         with:
-          prerelease: true
+          draft: true
+          #   prerelease: true
           files: dist/
-          name: "ExifRenamer-${{ steps.calc_sha.outputs.short_sha }}"
+          name: "ExifRenamer-Develop"
 
   #   - name: Setup upterm session
   #     uses: owenthereal/action-upterm@v1
