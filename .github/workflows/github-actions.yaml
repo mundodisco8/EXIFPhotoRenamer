@@ -18,55 +18,9 @@ env:
   PIP_ROOT_USER_ACTION: ignore
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Clone Repo
-        uses: actions/checkout@v5
-
-      - name: Build the Exe
-        # The easiest way to build a exe for windows is to use this image.
-        run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-windows:latest
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: RenameGUI
-          path: dist/
-
-      - name: Create "Changelog"
-        # if: github.event.pull_request.merged == true
-        run: |
-          echo "## Nightly Release" >> changelog.md
-          echo "Release created with the latest commit from develop with hash \`${GITHUB_SHA::7}\` at $(date)" >> changelog.md
-          echo "Make sure that's the latest commit available and the one you want to use. Otherwise, use a ttagged release (with \`vX.Y.Z\`)" >> changelog.md
-
-      - name: Zip
-        # if: github.event.pull_request.merged == true
-        run: |
-          cd dist
-          zip -r ExifRenamer.zip *
-          mv ExifRenamer.zip ../
-          cd ..
-
-      - name: Publish Nigthly
-        # If we are mergint the PR, publish a Release with the current artifact
-        # if: github.event.pull_request.merged == true
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: true
-          #   prerelease: true
-          files: ExifRenamer.zip
-          name: "ExifRenamer-Develop"
-          body_path: changelog.md
-
-      # - name: Setup upterm session
-      # uses: owenthereal/action-upterm@v1
-      # with:
-      #   limit-access-to-actor: true # Restrict to the user who triggered the workflow
-      #   limit-access-to-users: mundodisco8,JoelSantosRico,Joel-Skarper # Specific authorized users only
   test:
+    # Run tests, lint, create coverage report and in the case of merged pull requests, create a commit with the new
+    # coverage history info so we can track coverage as the project progresses.
     runs-on: ubuntu-latest
 
     permissions:
@@ -88,10 +42,12 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Test with pytest with coverage
+        # Creates a coverage report in xml format, following the rules in `.coveragerc`
         run: python -m pytest --cov --cov-report=xml
         continue-on-error: true
 
       - name: Lint with Ruff
+        # Lints the project, using the rules in ruff.toml
         uses: astral-sh/ruff-action@v3
         continue-on-error: true # allow lint errors, for now
 
@@ -102,6 +58,8 @@ jobs:
           dotnet-quality: "ga"
 
       - name: ReportGenerator
+        # Grabs a coverage report from coverageReport in XML and creates an HTML one in the same folder. It stores the
+        # new coverage history info on coverageHistory.
         uses: danielpalme/ReportGenerator-GitHub-Action@5.4.16
         with:
           reports: coverageReport/coverage.xml
@@ -111,12 +69,15 @@ jobs:
           historydir: coverageHistory
 
       - name: Upload Artifact
+        # Upload the coverage report to the Actions Artifact area (not the releases!)
         uses: actions/upload-artifact@v4
         with:
           name: CoverageReport
           path: coverageReport/coverageReport
 
       - name: Store Coverage History in PR Merge
+        # If we are merging a pull request, create a new commit just with the new coverage history data. That way we can
+        # keep track of the coverage progress as we work in the project
         if: github.event.pull_request.merged == true
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
@@ -128,3 +89,60 @@ jobs:
       #   with:
       #     limit-access-to-actor: true # Restrict to the user who triggered the workflow
       #     limit-access-to-users: mundodisco8,joel-felcana,Joel-Skarper # Specific authorized users only
+
+  build:
+    runs-on: ubuntu-latest
+    # Only runs if test has passed, and runs sequentially
+    needs: test
+
+    steps:
+      - name: Clone Repo
+        uses: actions/checkout@v5
+
+      - name: Build the Exe
+        # The easiest way to build a exe for windows is to use this image.
+        run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-windows:latest
+
+      - name: Upload Artifact
+        # Upload the compiled app to the artifacts section of the Action (will be deleted in 90 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: RenameGUI
+          path: dist/
+
+      # These steps only run if we are merging a pull request!
+      - name: Create "Changelog"
+        # Create a changelog for the nightly: just some text explaining that is not a "tagged" release and the SHA and
+        # date of the commit used to build the app
+        if: github.event.pull_request.merged == true
+        run: |
+          echo "## Nightly Release" >> changelog.md
+          echo "Release created with the latest commit from develop with hash \`${GITHUB_SHA::7}\` at $(date)" >> changelog.md
+          echo "Make sure that's the latest commit available and the one you want to use. Otherwise, use a ttagged release (with \`vX.Y.Z\`)" >> changelog.md
+
+      - name: Zip
+        # It might be easier to use the release action to do this, but I just could not crack it, so zip the app...
+        if: github.event.pull_request.merged == true
+        run: |
+          cd dist
+          zip -r ExifRenamer.zip *
+          mv ExifRenamer.zip ../
+          cd ..
+
+      - name: Publish Nigthly
+        # Publish the zip file. It should overwrite the previous release of the same name, that way we only keep the
+        # last "Nightly", we don't need a history of them.
+        if: github.event.pull_request.merged == true
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          #   prerelease: true
+          files: ExifRenamer.zip
+          name: "ExifRenamer-Develop"
+          body_path: changelog.md
+
+      # - name: Setup upterm session
+      # uses: owenthereal/action-upterm@v1
+      # with:
+      #   limit-access-to-actor: true # Restrict to the user who triggered the workflow
+      #   limit-access-to-users: mundodisco8,JoelSantosRico,Joel-Skarper # Specific authorized users only
