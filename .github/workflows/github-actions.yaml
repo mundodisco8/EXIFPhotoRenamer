@@ -8,8 +8,10 @@ on:
     # Jobs run when directly pushing on main or develop...
     branches: [main, develop]
   pull_request:
-    # or on any commit on any branch, as soon as a PR is opened for that branch
-    types: [opened, synchronize, reopened, closed]
+    # or on any commit on any branch, as soon as a PR is opened for that branch, every time a new commit is pushed to
+    # it once opened. It doesn't run on merged pull requests because a merged pull request also triggers a push action
+    # that we can catch because they always have the words "Merge pull request" on the commit message
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
@@ -80,7 +82,8 @@ jobs:
       - name: Store Coverage History in PR Merge
         # If we are merging a pull request, create a new commit just with the new coverage history data. That way we can
         # keep track of the coverage progress as we work in the project
-        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        # This will only trigger after merging a pull request, when the commit message contains "Merge pull request"
+        if: contains(github.event.head_commit.message, 'Merge pull request')
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: "Add Coverage History"
@@ -116,7 +119,9 @@ jobs:
       - name: Create "Changelog"
         # Create a changelog for the nightly: just some text explaining that is not a "tagged" release and the SHA and
         # date of the commit used to build the app
-        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        # This will only trigger after merging a pull request, when the commit message contains "Merge pull request"
+        if: contains(github.event.head_commit.message, 'Merge pull request')
+
         run: |
           echo "## Nightly Release" >> changelog.md
           echo "Release created with the latest commit merged into \`$GITHUB_BASE_REF\` with hash \`${GITHUB_SHA::7}\` on $(date)" >> changelog.md
@@ -124,7 +129,8 @@ jobs:
 
       - name: Zip
         # It might be easier to use the release action to do this, but I just could not crack it, so zip the app...
-        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        # This will only trigger after merging a pull request, when the commit message contains "Merge pull request"
+        if: contains(github.event.head_commit.message, 'Merge pull request')
         run: |
           cd dist
           zip -r ExifRenamer.zip *
@@ -134,7 +140,8 @@ jobs:
       - name: Publish Nigthly
         # Publish the zip file. It should overwrite the previous release of the same name, that way we only keep the
         # last "Nightly", we don't need a history of them.
-        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        # This will only trigger after merging a pull request, when the commit message contains "Merge pull request"
+        if: contains(github.event.head_commit.message, 'Merge pull request')
         uses: softprops/action-gh-release@v2
         with:
           draft: true
