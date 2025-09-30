@@ -117,7 +117,7 @@ jobs:
         if: github.event.pull_request.merged == true
         run: |
           echo "## Nightly Release" >> changelog.md
-          echo "Release created with the latest commit from develop with hash \`${GITHUB_SHA::7}\` at $(date)" >> changelog.md
+          echo "Release created with the latest commit merged into \`$GITHUB_BASE_REF\` with hash \`${GITHUB_SHA::7}\` on $(date)" >> changelog.md
           echo "Make sure that's the latest commit available and the one you want to use. Otherwise, use a ttagged release (with \`vX.Y.Z\`)" >> changelog.md
 
       - name: Zip

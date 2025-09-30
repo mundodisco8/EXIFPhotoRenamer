@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['src\\renameGUI.py'],
+    ['src/renameGUI.py'],
     pathex=['src'],
     binaries=[],
     datas=[],
