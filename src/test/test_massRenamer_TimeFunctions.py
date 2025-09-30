@@ -1,6 +1,6 @@
 from pytest import raises
 
-from src.massRenamer.massRenamerClasses import MediaFile, inferDateFromNeighbours
+from src.MassRenamer.MassRenamerClasses import MediaFile, inferDateFromNeighbours
 
 """
 This file contains tests for all the time/date handling methods of the massRenamer module
@@ -103,6 +103,7 @@ def test_findCreationTime_hasOffsetInAnotherTag():
 
 
 noOffsetInTagOffsetTagWrong: dict[str, str] = {
+    "SourceFile": "myFileName.jpg",  # we need a file name to display the error message
     "ExifIFD:CreateDate": "2025-01-01T10:48:44",
     "ExifIFD:OffsetTimeDigitized": "+02:000",  # <- correct offset for CreateDate
 }

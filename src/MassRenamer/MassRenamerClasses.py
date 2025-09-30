@@ -1,4 +1,4 @@
-"""Mass Renamer
+"""MassRenamerClasses
 This Module will grab all the image/video files in a folder and rename them.
 The images are sorted by dat and time of capture, and are renamed with the following pattern
 
@@ -45,6 +45,7 @@ from pathlib import Path
 from re import compile, search, match
 from logging import getLogger
 from collections import Counter
+from typing import Callable
 
 from natsort import os_sorted
 from tzfpy import get_tz
@@ -52,6 +53,9 @@ from whenever import OffsetDateTime, PlainDateTime, TimeDelta, ZonedDateTime
 
 module_logger = getLogger(__name__)
 
+####
+# Lists
+####
 
 # list of image extensions:
 IMAGE_EXTENSIONS: list[str] = [".jpeg", ".jpg", ".png", ".heic"]
@@ -59,19 +63,380 @@ VIDEO_EXTENSIONS: list[str] = [".mov", ".mp4"]
 # List of file extensions to ignore, as EXIFTool generates empty tags for them.
 DONT_PROCESS_EXTENSIONS: list[str] = [".aae", ".ds_store", ".json", ".zip"]
 
-##
-# Compiled Regexes
-##
-
-# GPS coordinates
-GPSCoordsRegEx = compile(r"([0-9]+) deg ([0-9]+)' ([0-9.]+)\"")
-
-####
-# Creation date finder - findCreationTime
-####
+# These are all the time tags that -time:all extract. Note that these tags don't have their group attached to them
+# Extracted with exiftool -list -time:all
+TIME_TAGS_LIST: list[str] = [
+    "ABDate",
+    "AccessDate",
+    "Acknowledged",
+    "AcquisitionTime",
+    "AcquisitionTimeDay",
+    "AcquisitionTimeMonth",
+    "AcquisitionTimeStamp",
+    "AcquisitionTimeYear",
+    "AcquisitionTimeYearMonth",
+    "AcquisitionTimeYearMonthDay",
+    "AppleMailDateReceived",
+    "AppleMailDateSent",
+    "ArtworkCircaDateCreated",
+    "ArtworkDateCreated",
+    "AudioModDate",
+    "BackupTime",
+    "Birthday",
+    "BroadcastDate",
+    "BroadcastTime",
+    "BuildDate",
+    "CFEGFlashTimeStamp",
+    "CalibrationDateTime",
+    "CameraDateTime",
+    "CameraPoseTimestamp",
+    "CaptionsDateTimeStamps",
+    "CircaDateCreated",
+    "ClassifyingCountryCodingMethodDate",
+    "ClipCreationDateTime",
+    "CommentTime",
+    "ContainerLastModifyDate",
+    "ContentCreateDate",
+    "ContractDateTime",
+    "CopyrightYear",
+    "CoverDate",
+    "CreateDate",
+    "CreationDate",
+    "CreationTime",
+    "DataCreateDate",
+    "DataModifyDate",
+    "Date",
+    "Date1",
+    "Date2",
+    "DateAccessed",
+    "DateAcquired",
+    "DateArchived",
+    "DateCompleted",
+    "DateCreated",
+    "DateDisplayFormat",
+    "DateEncoded",
+    "DateIdentified",
+    "DateImported",
+    "DateLastSaved",
+    "DateModified",
+    "DatePictureTaken",
+    "DatePurchased",
+    "DateReceived",
+    "DateRecieved",
+    "DateReleased",
+    "DateSent",
+    "DateTagged",
+    "DateTime",
+    "DateTime1",
+    "DateTime2",
+    "DateTimeCompleted",
+    "DateTimeCreated",
+    "DateTimeDigitized",
+    "DateTimeDropFrameFlag",
+    "DateTimeDue",
+    "DateTimeEmbeddedFlag",
+    "DateTimeEnd",
+    "DateTimeGenerated",
+    "DateTimeKind",
+    "DateTimeOriginal",
+    "DateTimeRate",
+    "DateTimeStamp",
+    "DateTimeStart",
+    "DateTimeUTC",
+    "DateVisited",
+    "DateWritten",
+    "DayOfWeek",
+    "DaylightSavings",
+    "DeclassificationDate",
+    "DeprecatedOn",
+    "DerivedFromLastModifyDate",
+    "DestinationCity",
+    "DestinationDST",
+    "DigitalCreationDate",
+    "DigitalCreationDateTime",
+    "DigitalCreationTime",
+    "EarthPosTimestamp",
+    "EmbargoDate",
+    "EncodeTime",
+    "EncodingTime",
+    "EndTime",
+    "EventAbsoluteDuration",
+    "EventDate",
+    "EventDay",
+    "EventEarliestDate",
+    "EventEndDayOfYear",
+    "EventEndTimecodeOffset",
+    "EventLatestDate",
+    "EventMonth",
+    "EventStartDayOfYear",
+    "EventStartTime",
+    "EventStartTimecodeOffset",
+    "EventTime",
+    "EventVerbatimEventDate",
+    "EventYear",
+    "ExceptionDateTimes",
+    "ExclusivityEndDate",
+    "ExpirationDate",
+    "ExpirationTime",
+    "ExtensionCreateDate",
+    "ExtensionModifyDate",
+    "FileAccessDate",
+    "FileCreateDate",
+    "FileInodeChangeDate",
+    "FileModifyDate",
+    "FilmTestResult",
+    "FirstPhotoDate",
+    "FirstPublicationDate",
+    "FormatVersionTime",
+    "GPSDateStamp",
+    "GPSDateTime",
+    "GPSDateTimeRaw",
+    "GPSTimeStamp",
+    "HistoryWhen",
+    "HometownCity",
+    "HometownDST",
+    "HumanObservationDay",
+    "HumanObservationEarliestDate",
+    "HumanObservationEndDayOfYear",
+    "HumanObservationEventDate",
+    "HumanObservationEventTime",
+    "HumanObservationLatestDate",
+    "HumanObservationMonth",
+    "HumanObservationStartDayOfYear",
+    "HumanObservationVerbatimEventDate",
+    "HumanObservationYear",
+    "IPTCLastEdited",
+    "ImageProcessingFileDateCreated",
+    "IngredientsLastModifyDate",
+    "KillDateDate",
+    "LastBackupDate",
+    "LastPhotoDate",
+    "LastPrinted",
+    "LastUpdate",
+    "LayerModifyDates",
+    "LicenseEndDate",
+    "LicenseStartDate",
+    "LicenseTransactionDate",
+    "LocalCreationDateTime",
+    "LocalEndDateTime",
+    "LocalEventEndDateTime",
+    "LocalEventStartDateTime",
+    "LocalFestivalDateTime",
+    "LocalLastModifyDate",
+    "LocalModifyDate",
+    "LocalStartDateTime",
+    "LocalUserDateTime",
+    "LocationDate",
+    "MDItemContentCreationDate",
+    "MDItemContentCreationDateRanking",
+    "MDItemContentCreationDate_Ranking",
+    "MDItemContentModificationDate",
+    "MDItemDateAdded",
+    "MDItemDateAdded_Ranking",
+    "MDItemDownloadedDate",
+    "MDItemFSContentChangeDate",
+    "MDItemFSCreationDate",
+    "MDItemGPSDateStamp",
+    "MDItemInterestingDateRanking",
+    "MDItemInterestingDate_Ranking",
+    "MDItemLastUsedDate",
+    "MDItemMailDateReceived_Ranking",
+    "MDItemTimestamp",
+    "MDItemUsedDates",
+    "MDItemUserDownloadedDate",
+    "MachineObservationDay",
+    "MachineObservationEarliestDate",
+    "MachineObservationEndDayOfYear",
+    "MachineObservationEventDate",
+    "MachineObservationEventTime",
+    "MachineObservationLatestDate",
+    "MachineObservationMonth",
+    "MachineObservationStartDayOfYear",
+    "MachineObservationVerbatimEventDate",
+    "MachineObservationYear",
+    "ManagedFromLastModifyDate",
+    "ManifestReferenceLastModifyDate",
+    "ManufactureDate",
+    "ManufactureDate1",
+    "ManufactureDate2",
+    "MaterialAbsoluteDuration",
+    "MaterialEndTimecodeOffset",
+    "MeasurementDeterminedDate",
+    "MediaCreateDate",
+    "MediaModifyDate",
+    "MediaOriginalBroadcastDateTime",
+    "MetadataDate",
+    "MetadataLastEdited",
+    "MetadataModDate",
+    "MinoltaDate",
+    "MinoltaTime",
+    "ModDate",
+    "ModificationDate",
+    "ModifyDate",
+    "Month",
+    "MonthDayCreated",
+    "MoonPhase",
+    "NikonDateTime",
+    "Now",
+    "ON1_SettingsMetadataCreated",
+    "ON1_SettingsMetadataModified",
+    "ON1_SettingsMetadataTimestamp",
+    "ObjectCountryCodingMethodDate",
+    "ObservationDate",
+    "ObservationDateEnd",
+    "ObservationTime",
+    "ObservationTimeEnd",
+    "OffSaleDateDate",
+    "OffsetTime",
+    "OffsetTimeDigitized",
+    "OffsetTimeOriginal",
+    "OnSaleDateDate",
+    "OptionEndDate",
+    "OriginalCreateDateTime",
+    "OriginalReleaseTime",
+    "OriginalReleaseYear",
+    "OtherDate1",
+    "OtherDate2",
+    "OtherDate3",
+    "PDBCreateDate",
+    "PDBModifyDate",
+    "PackageLastModifyDate",
+    "PanasonicDateTime",
+    "PatientBirthDate",
+    "PaymentDueDateTime",
+    "PhysicalMediaLength",
+    "PlanePoseTimestamp",
+    "PoseTimestamp",
+    "PowerUpTime",
+    "PreviewDate",
+    "PreviewDateTime",
+    "ProducedDate",
+    "ProductionDate",
+    "ProfileDateTime",
+    "PublicationDateDate",
+    "PublicationDisplayDateDate",
+    "PublicationEventDate",
+    "PublishDate",
+    "PublishDateStart",
+    "RecordedDate",
+    "RecordingTime",
+    "RecordingTimeDay",
+    "RecordingTimeMonth",
+    "RecordingTimeYear",
+    "RecordingTimeYearMonth",
+    "RecordingTimeYearMonthDay",
+    "RecurrenceDateTimes",
+    "RecurrenceRule",
+    "ReelTimecode",
+    "ReferenceDate",
+    "RegionInfoDateRegionsValid",
+    "RegisterCreationTime",
+    "RegisterItemStatusChangeDateTime",
+    "RegisterReleaseDateTime",
+    "RegisterUserTime",
+    "RelationshipEstablishedDate",
+    "ReleaseDate",
+    "ReleaseDateDay",
+    "ReleaseDateMonth",
+    "ReleaseDateYear",
+    "ReleaseDateYearMonth",
+    "ReleaseDateYearMonthDay",
+    "ReleaseTime",
+    "RenditionOfLastModifyDate",
+    "RevisionDate",
+    "RicohDate",
+    "RightsStartDateTime",
+    "RightsStopDateTime",
+    "RootDirectoryCreateDate",
+    "SMPTE12MUserDateTime",
+    "SMPTE309MUserDateTime",
+    "SampleDateTime",
+    "ScanDate",
+    "ScanSoftwareRevisionDate",
+    "SeriesDateTime",
+    "SettingDateTime",
+    "ShotDate",
+    "SigningDate",
+    "SonyDateTime",
+    "SonyDateTime2",
+    "SourceDate",
+    "SourceModified",
+    "StartTime",
+    "StartTimecode",
+    "StartTimecodeRelativeToReference",
+    "StorageFormatDate",
+    "StorageFormatTime",
+    "StudyDateTime",
+    "SubSecCreateDate",
+    "SubSecDateTimeOriginal",
+    "SubSecModifyDate",
+    "SubSecTime",
+    "SubSecTimeDigitized",
+    "SubSecTimeOriginal",
+    "TaggingTime",
+    "TemporalCoverageFrom",
+    "TemporalCoverageTo",
+    "ThumbnailDateTime",
+    "Time",
+    "Time1",
+    "Time2",
+    "TimeAndDate",
+    "TimeCreated",
+    "TimeSent",
+    "TimeStamp",
+    "TimeStamp1",
+    "TimeStampList",
+    "TimeZone",
+    "TimeZone2",
+    "TimeZoneCity",
+    "TimeZoneCode",
+    "TimeZoneDST",
+    "TimeZoneInfo",
+    "TimeZoneURL",
+    "TimecodeCreationDateTime",
+    "TimecodeEndDateTime",
+    "TimecodeEventEndDateTime",
+    "TimecodeEventStartDateTime",
+    "TimecodeLastModifyDate",
+    "TimecodeModifyDate",
+    "TimecodeStartDateTime",
+    "TimezoneID",
+    "TimezoneName",
+    "TimezoneOffsetFrom",
+    "TimezoneOffsetTo",
+    "TrackCreateDate",
+    "TrackModifyDate",
+    "TransformCreateDate",
+    "TransformModifyDate",
+    "UTCEndDateTime",
+    "UTCEventEndDateTime",
+    "UTCEventStartDateTime",
+    "UTCInstantDateTime",
+    "UTCLastModifyDate",
+    "UTCStartDateTime",
+    "UTCUserDateTime",
+    "UnknownDate",
+    "VersionCreateDate",
+    "VersionModifyDate",
+    "VersionsEventWhen",
+    "VersionsModifyDate",
+    "VideoModDate",
+    "VolumeCreateDate",
+    "VolumeEffectiveDate",
+    "VolumeExpirationDate",
+    "VolumeModifyDate",
+    "WorldTimeLocation",
+    "XAttrAppleMailDateReceived",
+    "XAttrAppleMailDateSent",
+    "XAttrLastUsedDate",
+    "XAttrMDItemDownloadedDate",
+    "Year",
+    "YearCreated",
+    "ZipModifyDate",
+]
 
 # These are the tags that I'm capturing with EXIFTool about creation time
-dateTagsToCheck: list[str] = [
+DATE_TAGS_TO_CHECK: list[str] = [
     "ExifIFD:DateTimeOriginal",
     "QuickTime:DateTimeOriginal",
     "XMP:DateTimeOriginal",
@@ -84,19 +449,31 @@ dateTagsToCheck: list[str] = [
 ]
 
 # This dict contains the correct offset tag for each time tag
-offsetDict: dict[str, str] = {
+OFFSET_DICT: dict[str, str] = {
     "ExifIFD:DateTimeOriginal": "ExifIFD:OffsetTimeOriginal",
     "ExifIFD:CreateDate": "ExifIFD:OffsetTimeDigitized",
     "ExifIFD:ModifyDate": "ExifIFD:OffsetTime",
 }
 
 # List of GPS tags to grab metadata from
-GPSTagsList: list[str] = [
+GPS_TAGS_LIST: list[str] = [
     "GPSLatitudeRef",
     "GPSLatitude",
     "GPSLongitudeRef",
     "GPSLongitude",
 ]
+
+# List of user comments tags, used to check iOS Screenshots
+USER_COMMENTS_TAGS_LIST: list[str] = [
+    "ExifIFD:UserComment",
+    "XMP-exif:UserComment",
+]
+##
+# Compiled Regexes
+##
+
+# GPS coordinates
+GPSCoordsRegEx = compile(r"([0-9]+) deg ([0-9]+)' ([0-9.]+)\"")
 
 
 class MediaFile:
@@ -204,8 +581,8 @@ class MediaFile:
         """
 
         # We are asking EXIFTool to return the dates in `YYYY-MM-DDThh:mm:ss⨦oo:00` format. If the tag has offset info,
-        # then obviously the offset is correct, but sometimes it returns +00:00 and then you have to check the presence of
-        # offset tags.
+        # then obviously the offset is correct, but sometimes it returns +00:00 and then you have to check the presence
+        # of offset tags.
         # From ExifTool (https://exiftool.org/TagNames/EXIF.html)
         #
         # 0x9003    DateTimeOriginal        string  ExifIFD     (date/time when original image was taken)
@@ -214,10 +591,10 @@ class MediaFile:
         # 0x9011    OffsetTimeOriginal      string  ExifIFD     (time zone for DateTimeOriginal)
         # 0x9012    OffsetTimeDigitized     string  ExifIFD     (time zone for CreateDate)
 
-        # Loop through the dateTagsToCheck tags. They are sorted by preference. As soon as we have one, we can take that one
-        # as the date and break
+        # Loop through the DATE_TAGS_TO_CHECK tags. They are sorted by preference. As soon as we have one, we can take
+        # that one as the date and break
         date: ZonedDateTime | OffsetDateTime | PlainDateTime | None = None
-        for tag in dateTagsToCheck:
+        for tag in DATE_TAGS_TO_CHECK:
             if tag in exifToolData:
                 # Ideally, we got a date in the format YYYY-MM-DDThh:mm:ss±OO:OO, that we can parse as OffsetDateTime
                 try:
@@ -227,8 +604,9 @@ class MediaFile:
                     try:
                         date = PlainDateTime.parse_common_iso(exifToolData[tag]).assume_fixed_offset(0)
                     except ValueError:
-                        # At least in Quicktime tags, instead of deleting the tags, they are set to "0000:00:00 00:00:00"
-                        # which I think fails as that is not a "date" (whenever only accepts 1-1-1 first date)
+                        # At least in Quicktime tags, instead of deleting the tags, they are set to
+                        # "0000:00:00 00:00:00" which I think fails as that is not a "date" (whenever only accepts 1-1-1
+                        # first date)
                         if exifToolData[tag] == "0000:00:00 00:00:00":
                             # I could delete the tag, but I don't have access to the source, just a copy of it
                             pass
@@ -247,7 +625,8 @@ class MediaFile:
                     and "GPS:GPSLongitudeRef" in exifToolData.keys()
                     and "GPS:GPSLongitude" in exifToolData.keys()
                 ):
-                    # Latitude and longitude follow the "GGG deg MM' SS.00"" format, we have a regexp to capture the numbers
+                    # Latitude and longitude follow the "GGG deg MM' SS.00"" format, we have a regexp to capture the
+                    # numbers
                     longMatch = match(GPSCoordsRegEx, exifToolData["GPS:GPSLongitude"])
                     latMatch = match(GPSCoordsRegEx, exifToolData["GPS:GPSLatitude"])
                     longitude: float | None = None
@@ -272,23 +651,23 @@ class MediaFile:
 
                     if longitude and latitude:
                         myTZ = get_tz(longitude, latitude)
-                        # Type dance: convert to plain (to get rid of whatever offset it had), assume it belongs to tz, so
-                        # we have a time with the same "value" but on a different tz, and then to fixed offset (as we
+                        # Type dance: convert to plain (to get rid of whatever offset it had), assume it belongs to tz,
+                        # so we have a time with the same "value" but on a different tz, and then to fixed offset (as we
                         # can't store the timezone string in the tags)
                         date = date.to_tz(myTZ).to_fixed_offset()
                 else:
                     # No GPS location, try offsets
-                    if tag in offsetDict.keys() and offsetDict[tag] in exifToolData.keys():
-                        offsetStr = exifToolData[offsetDict[tag]]
+                    if tag in OFFSET_DICT.keys() and OFFSET_DICT[tag] in exifToolData.keys():
+                        offsetStr = exifToolData[OFFSET_DICT[tag]]
                         if len(offsetStr) == 6:
                             offsetSign = offsetStr[0]  # + or -
                             offsetHours = offsetStr[1:3]  # HH
                             offsetMin = offsetStr[4:]  # skip : and get MM
 
-                            # "Delete" the current offset by considering the date a plain date, and then create a new fixed offset
-                            # By passing the offset as a "TimeDelta" we can pass "fractional" offsets (01:30). To get a negative
-                            # offset, we have to pass "negative" hours and "negative" minutes (otherwise they cancel each other
-                            # out: -2h and +30 minutes is -01:30)
+                            # "Delete" the current offset by considering the date a plain date, and then create a new
+                            # fixed offset. By passing the offset as a "TimeDelta" we can pass "fractional" offsets
+                            # (01:30). To get a negative offset, we have to pass "negative" hours and "negative" minutes
+                            # (otherwise they cancel each other out: -2h and +30 minutes is -01:30)
                             offsetTimeDelta = TimeDelta(
                                 hours=int(offsetSign + offsetHours), minutes=int(offsetSign + offsetMin)
                             )
@@ -297,10 +676,10 @@ class MediaFile:
                         else:
                             # Offset has to be ±HH:MM or 'Z'
                             raise ValueError(
-                                f"In {offsetDict['SourceFile']}: Offset ('{offsetStr}') is the wrong length"
+                                f"In {exifToolData['SourceFile']}: Offset ('{offsetStr}') string has wrong length"
                             )
-                        # Type dance: convert to plain (to get rid of whatever offset it had), assume it has a certain fixed
-                        # offset, so we have a time with the same "value" but on a different offset.
+                        # Type dance: convert to plain (to get rid of whatever offset it had), assume it has a certain
+                        # fixed offset, so we have a time with the same "value" but on a different offset.
                         date = date.to_plain().assume_fixed_offset(offsetTimeDelta)
                 break
 
@@ -314,7 +693,10 @@ class MediaFile:
         Returns a string with the representation of the object: this string could be used to init an instance
         Example: MediaFile(fileName='Name', dateTime='1234-12-12 11-22-33+03:00', source="Apple iPhone 8")
         """
-        return f"{type(self).__name__}(fileName=Path('{self.fileName}'), dateTime='{self.dateTime}', EXIFTags={self.EXIFTags})"
+        return (
+            f"{type(self).__name__}(fileName=Path('{self.fileName}'), dateTime='{self.dateTime}', "
+            f"EXIFTags={self.EXIFTags})"
+        )
 
     def getNewName(self) -> None:
         self.newName = Path("")
@@ -348,7 +730,14 @@ class MediaFile:
                 # That's just too long
                 return "Olympus " + model
             elif make.lower() == "fujifilm":
+                # It's odd to see Fuji as Fujifilm, remove the "film" bit
                 return "Fuji " + model
+            elif model.lower() == "oneplus a5010":
+                # OnePlus adds the Make to the model, and uses the model number instead of the common name
+                return make + "5T"
+            elif make.lower() == "canon":
+                # Canon adds "Canon" to the model too, so make + model is "Canon Canon"
+                return model
             else:
                 return make + " " + model
 
@@ -361,9 +750,11 @@ class MediaFile:
         Returns:
             str | None: "Screenshot" if it's a iOS screenshot, None otherwise
         """
-        if "XMP-exif:UserComments" in self.EXIFTags.keys():
-            if self.EXIFTags["XMP-exif:UserComments"] == "Screenshot":
-                return "Screenshot"
+
+        for tag in USER_COMMENTS_TAGS_LIST:
+            if tag in self.EXIFTags.keys():
+                if self.EXIFTags[tag].lower() == "screenshot":
+                    return "iOS Screenshot"
         return None
 
     def isInstragram(self) -> str | None:
@@ -383,6 +774,29 @@ class MediaFile:
                 # stop stearching if one key with screenshot is found
                 if "facebook" in self.EXIFTags[key].lower() or "instagram" in self.EXIFTags[key].lower():
                     return "Instagram"
+        return None
+
+    def isEditingSoftware(self) -> str | None:
+        """Rule to apply "Photosho Etc." to all the files that don't match any other rule and have an Edition Software
+        in the software tag (Photoshop, Lightroom, Gimp...)
+
+        Returns:
+            str | None: "Photoshop Etc." if the MediaFile matches the rule, None otherwise
+        """
+        # If there's any key with partial match with "Software", the list comprehension
+        # will not be empty
+        softwareKeys = [key for key in self.EXIFTags.keys() if "software" in key.lower()]
+        # Check for each key, while the flag is false, if the UserComment contains "facebook"
+        # or "instagram"
+        if softwareKeys != []:
+            for key in softwareKeys:
+                # stop stearching if one key with screenshot is found
+                if (
+                    "photoshop" in self.EXIFTags[key].lower()
+                    or "gimp" in self.EXIFTags[key].lower()
+                    or "capture one" in self.EXIFTags[key].lower()
+                ):
+                    return "Photoshop Etc."
         return None
 
     # NOTE: Tested
@@ -411,7 +825,12 @@ class MediaFile:
         if not source:
             # Try now with PicsArt pictures
             source = self.isPicsArt()
-        # TODO: Photoshop
+        if not source:
+            # Process files coming from Photoshop, as they are normally "more relevant" than simply WhatsApp images,
+            # they come from "somewhere" more important and I think they deserve their own category. They normally
+            # come from a Camera, and Photoshop respects the EXIF tags, so they are in all likelihood already sourced.
+            # I leave this rule as the last, just before getting it in the WhatsApp bucket
+            source = self.isEditingSoftware()
         if source:
             return source
         # Ultimately, if no other lead to get the source, asssume it's Whatsapp
@@ -481,7 +900,9 @@ def loadExifToolTagsFromFile(inputFile: Path) -> list[dict[str, str]]:
 
 
 # NOTE: Tested
-def generateSortedMediaFileList(etData: list[dict[str, str]]) -> list[MediaFile]:
+def generateSortedMediaFileList(
+    etData: list[dict[str, str]], itemProcessedCallBack: Callable[[], None] | None = None
+) -> list[MediaFile]:
     """
     Creates a list of MediaFile objects from a list of dictionaries with tags comming from
     EXIFTool. The list is sorted by filename using natural sorting (as in "Windows Explorer Sorting")
@@ -489,8 +910,10 @@ def generateSortedMediaFileList(etData: list[dict[str, str]]) -> list[MediaFile]
     Args:
         etData (list[dict[str, str]): a list of dictionaries. Each dictionary is a collection of tags
         obtained from EXIFTool
+        itemProcessedCallBack: Callable (() -> None ) | None. If passed, a callback to call on each item processed
+        completion to indicate the progress.
 
-    Returns:
+     Returns:
         list[MediaFile]: a list of MediaFile objects, ready to be processed
     """
     mediaFileList: list[MediaFile] = []
@@ -499,11 +922,17 @@ def generateSortedMediaFileList(etData: list[dict[str, str]]) -> list[MediaFile]
         # The batch processor of ExifTool processes some files that are not images, so remove
         # known bad extensions. Get the filename and check its extension
         fileName: Path = Path(entry["SourceFile"])
-        # We have to check 'suffix' for files with name.extension ('example.aae'), and name for files with name starting with . ('.ds_store')
+        # We have to check 'suffix' for files with name.extension ('example.aae'), and name for files with name starting
+        # with . ('.ds_store')
         if (fileName.suffix.lower() not in DONT_PROCESS_EXTENSIONS) and (
             fileName.name.lower() not in DONT_PROCESS_EXTENSIONS
         ):
             mediaFileList.append(MediaFile.fromExifTags(entry))
+
+        # If we passed a callback, call it to mark the item as processed, even for those not processable, as they are
+        # in the list too (otherwise we would end up sort of item)
+        if itemProcessedCallBack:
+            itemProcessedCallBack()
 
     # Sorts the list based on the filename. This will help to infer dates based on
     # "neighbours" with date.
@@ -521,11 +950,13 @@ def getFilesInFolder(inputFolder: Path) -> int:
         int: total number of files that ExifTool can process
     """
     numFiles: int = 0
-    cmdFind: list[str | Path] = ["exiftool", "-listdir", "-r", inputFolder]
-    p = run(cmdFind, stdout=PIPE, stderr=PIPE, shell=True, text=True)
+    cmdFind: list[str | Path] = ["exiftool", "-listdir", "-r", '"' + str(inputFolder) + '"']
+    p = run(" ".join(str(x) for x in cmdFind), stdout=PIPE, stderr=PIPE, shell=True, text=True)
     result = search("([0-9]*) image files read", p.stdout)
     if result:
         numFiles = int(result.group(1))
+    else:
+        module_logger.warning(f"Did not find files?\n\tCommand: {' '.join(str(x) for x in cmdFind)}\n\tOuput: {result}")
     return numFiles
 
 
@@ -595,6 +1026,39 @@ def storeMediaFileListTags(outputFile: Path, listMediaFiles: list[MediaFile]) ->
 ####
 # Creation date fixers
 ####
+
+
+def isTagATimeTag(tag: str) -> bool:
+    """Checks if the passed tag is one of the tags returned by -time:all
+
+    Args:
+        tag (str): the tag to check, as a string
+
+    Returns:
+        bool: true if it's in the -time:all shortcut, false otherwise
+    """
+    # Display data. We will filter the tags and display only the time-related ones. We have a list of time tags
+    # but they don't have group info, so we have to split after the semicolon in order to match them
+    # Split by the semicolon and take the second part
+    if tag:
+        tagGroup, separator, tagWithoutGroup = tag.partition(":")
+        if separator:
+            # If separator was found, the tag included group information
+            if tagWithoutGroup in TIME_TAGS_LIST:
+                return True
+            # One Corner Case is that System File tags ("System:FileModifyDate", "System:FileAccessDate",
+            # "System:FileCreateDate") are not in the list (as they might not be treated as EXIF tags)
+            # Same for our "Inferred" dates
+            if tagGroup == "System":
+                return True
+            elif tagGroup == "Inferred":
+                return True
+        else:
+            # The tag might have been passed without a group, let's check it nevertheless
+            if tag in TIME_TAGS_LIST:
+                return True
+    # Otherwise, it's not a time tag
+    return False
 
 
 # NOTE: Tested
@@ -675,8 +1139,8 @@ def findNewNames(mediaFileList: list[MediaFile], parentFolder: Path) -> None:
 
     for source in availableSources:
         # Date Histogram:
-        # Find how many entries share the same date. We want to know this to figure out how many zeroes the file index will
-        # have, so they are naturally sorted in the file explorer
+        # Find how many entries share the same date. We want to know this to figure out how many zeroes the file index
+        # will have, so they are naturally sorted in the file explorer
         dateHistogram: dict[str, int] = Counter(
             OffsetDateTime.parse_common_iso(instance.dateTime).date().format_common_iso()
             for instance in mediaFileList
