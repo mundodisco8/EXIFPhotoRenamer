@@ -104,17 +104,6 @@ jobs:
       - name: Clone Repo
         uses: actions/checkout@v5
 
-      - name: Build the Exe
-        # The easiest way to build a exe for windows is to use this image.
-        run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-windows:latest
-
-      - name: Upload Artifact
-        # Upload the compiled app to the artifacts section of the Action (will be deleted in 90 days)
-        uses: actions/upload-artifact@v4
-        with:
-          name: RenameGUI
-          path: dist/
-
       # These steps only run if we are merging a pull request!
       - name: Create "Changelog"
         # Create a changelog for the nightly: just some text explaining that is not a "tagged" release and the SHA and
@@ -127,15 +116,50 @@ jobs:
           echo "Release created with the latest commit from branch \`${{ github.event.pull_request.head.ref }}\` merged into \`${{ github.event.pull_request.base.ref }}\` with hash \`${GITHUB_SHA::7}\` on $(date)" >> changelog.md
           echo "Make sure that's the latest commit available and the one you want to use. Otherwise, use a tagged release (with \`vX.Y.Z\`)" >> changelog.md
 
-      - name: Zip
+      - name: Build the Windows App
+        # The easiest way to build a exe for windows is to use this image.
+        run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-windows:latest
+
+      - name: Zip The Windows App
         # It might be easier to use the release action to do this, but I just could not crack it, so zip the app...
         # This will only trigger after merging a pull request, when the commit message contains "Merge pull request"
         if: contains(github.event.head_commit.message, 'Merge pull request')
         run: |
           cd dist
-          zip -r ExifRenamer.zip *
-          mv ExifRenamer.zip ../
+          zip -r ExifRenamer-Windows.zip *
+          mv ExifRenamer-Windows.zip ../
           cd ..
+
+      - name: Build the Linux App
+        # The easiest way to build a exe for windows is to use this image.
+        run: |
+          rm -rf build dist
+          python -m pip install pyinstaller
+          pyinstaller renameGUI.spec
+
+      - name: Zip The Windows Exe
+        # It might be easier to use the release action to do this, but I just could not crack it, so zip the app...
+        # This will only trigger after merging a pull request, when the commit message contains "Merge pull request"
+        if: contains(github.event.head_commit.message, 'Merge pull request')
+        run: |
+          cd dist
+          zip -r ExifRenamer-Linux.zip *
+          mv ExifRenamer-Linux.zip ../
+          cd ..
+
+      - name: Upload Artifact Windows
+        # Upload the compiled app to the artifacts section of the Action (will be deleted in 90 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: RenameGUI-Windows
+          path: ExifRenamer-Windows.zip
+
+      - name: Upload Artifact Linux
+        # Upload the compiled app to the artifacts section of the Action (will be deleted in 90 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: RenameGUI-Windows
+          path: ExifRenamer-Linux.zip
 
       - name: Publish Nigthly
         # Publish the zip file. It should overwrite the previous release of the same name, that way we only keep the
@@ -146,7 +170,9 @@ jobs:
         with:
           draft: true
           #   prerelease: true
-          files: ExifRenamer.zip
+          files: |
+            ExifRenamer-Windows.zip
+            ExifRenamer-Linux.zip
           name: "ExifRenamer-Develop"
           body_path: changelog.md
 
