@@ -144,7 +144,7 @@ jobs:
         # Upload the compiled app to the artifacts section of the Action (will be deleted in 90 days)
         uses: actions/upload-artifact@v4
         with:
-          name: RenameGUI-Windows
+          name: RenameGUI-Linux
           path: ExifRenamer-Linux.zip
 
       # These steps only run if we are merging a pull request!
