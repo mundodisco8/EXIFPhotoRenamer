@@ -104,18 +104,6 @@ jobs:
       - name: Clone Repo
         uses: actions/checkout@v5
 
-      # These steps only run if we are merging a pull request!
-      - name: Create "Changelog"
-        # Create a changelog for the nightly: just some text explaining that is not a "tagged" release and the SHA and
-        # date of the commit used to build the app
-        # This will only trigger after merging a pull request, when the commit message contains "Merge pull request"
-        if: contains(github.event.head_commit.message, 'Merge pull request')
-
-        run: |
-          echo "## Nightly-ish Release" >> changelog.md
-          echo "Release created with the latest commit from branch \`${{ github.event.pull_request.head.ref }}\` merged into \`${{ github.event.pull_request.base.ref }}\` with hash \`${GITHUB_SHA::7}\` on $(date)" >> changelog.md
-          echo "Make sure that's the latest commit available and the one you want to use. Otherwise, use a tagged release (with \`vX.Y.Z\`)" >> changelog.md
-
       - name: Build the Windows App
         # The easiest way to build a exe for windows is to use this image.
         run: docker run --volume .:/src/ --env SPECFILE=renameGUI.spec batonogov/pyinstaller-windows:latest
@@ -123,7 +111,6 @@ jobs:
       - name: Zip The Windows App
         # It might be easier to use the release action to do this, but I just could not crack it, so zip the app...
         # This will only trigger after merging a pull request, when the commit message contains "Merge pull request"
-        if: contains(github.event.head_commit.message, 'Merge pull request')
         run: |
           cd dist
           zip -r ExifRenamer-Windows.zip *
@@ -140,7 +127,6 @@ jobs:
       - name: Zip The Windows Exe
         # It might be easier to use the release action to do this, but I just could not crack it, so zip the app...
         # This will only trigger after merging a pull request, when the commit message contains "Merge pull request"
-        if: contains(github.event.head_commit.message, 'Merge pull request')
         run: |
           cd dist
           zip -r ExifRenamer-Linux.zip *
@@ -160,6 +146,17 @@ jobs:
         with:
           name: RenameGUI-Windows
           path: ExifRenamer-Linux.zip
+
+      # These steps only run if we are merging a pull request!
+      - name: Create "Changelog"
+        # Create a changelog for the nightly: just some text explaining that is not a "tagged" release and the SHA and
+        # date of the commit used to build the app
+        # This will only trigger after merging a pull request, when the commit message contains "Merge pull request"
+        if: contains(github.event.head_commit.message, 'Merge pull request')
+        run: |
+          echo "## Nightly-ish Release" >> changelog.md
+          echo "Release created with the latest commit from branch \`${{ github.event.pull_request.head.ref }}\` merged into \`${{ github.event.pull_request.base.ref }}\` with hash \`${GITHUB_SHA::7}\` on $(date)" >> changelog.md
+          echo "Make sure that's the latest commit available and the one you want to use. Otherwise, use a tagged release (with \`vX.Y.Z\`)" >> changelog.md
 
       - name: Publish Nigthly
         # Publish the zip file. It should overwrite the previous release of the same name, that way we only keep the
