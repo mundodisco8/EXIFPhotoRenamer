@@ -25,7 +25,7 @@ jobs:
   test:
     # Run tests, lint, create coverage report and in the case of merged pull requests, create a commit with the new
     # coverage history info so we can track coverage as the project progresses.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     permissions:
       # Enable writing for the checkout of the coverage history
