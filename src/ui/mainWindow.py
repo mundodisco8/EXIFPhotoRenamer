@@ -24,10 +24,10 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1600, 1200)
+        MainWindow.resize(1600, 1100)
         self.progLayoutWidget = QWidget(MainWindow)
         self.progLayoutWidget.setObjectName(u"progLayoutWidget")
-        self.progLayoutWidget.setGeometry(QRect(80, 1090, 1431, 61))
+        self.progLayoutWidget.setGeometry(QRect(80, 1020, 1431, 61))
         self.verticalLayout = QVBoxLayout(self.progLayoutWidget)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
