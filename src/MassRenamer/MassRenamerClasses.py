@@ -58,7 +58,7 @@ module_logger = getLogger(__name__)
 ####
 
 # list of image extensions:
-IMAGE_EXTENSIONS: list[str] = [".jpeg", ".jpg", ".png", ".heic"]
+IMAGE_EXTENSIONS: list[str] = [".jpeg", ".jpg", ".png", ".heic", ".gif"]
 VIDEO_EXTENSIONS: list[str] = [".mov", ".mp4"]
 # List of file extensions to ignore, as EXIFTool generates empty tags for them.
 DONT_PROCESS_EXTENSIONS: list[str] = [".aae", ".ds_store", ".json", ".zip"]
