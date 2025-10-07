@@ -1,33 +1,28 @@
-"""MassRenamerClasses
-This Module will grab all the image/video files in a folder and rename them.
-The images are sorted by dat and time of capture, and are renamed with the following pattern
+r"""MassRenamerClasses
 
-`YYYY-MM-DD string XX.ext`
+A module used to rename my photos.
 
-Where YYYY-MM-DD is the date of capture, string is a... string, and XX is an increasing counter
-for images captured in the same day.
+It defines the MediaFile Class, that can store some EXIF tags for different types of media (images and video) and
+will propose a new name for the file, following the pattern
 
-This module generates a JSON file with metadata for the images and videos on a folder.
-The metadata will be used later for a mass rename process. This process takes a while (~1s per
-image) so you might want to skip it on folders with lots of files.
+`BasePath/{Year}/{Source}/{DateOfCreation} {Source} {NumberOfPicture}.{extension}`
 
-The JSON data will be exported to a file named `data_file_sorted.json`. This file will
-contain one key for each image/video file in a folder and it's subfolders, and the value
-of that key will be a dictionary with the date and time of creation as strings and a boolean
-flag indicating if a sidecar file is present for that particular file (as it would have to be
-renamed too).
+The first level of grouping is by Year the media file was created.
+The second level of grouping is by "Source", where Source is the origin of the file (Make and Model if it's a camera, or
+the name of an app if it's not a capture.
+Finally, files are renamed with the date of creation, its source (again) and a number indicating the order of the
+picture for that particular date. The numeral is preceded with as many 0s as required, depending on the number of
+pictures taken that day, so we don't need to rely on weird natural sortings.
 
-Example of a JSON key
-```
-{
-    [...]
-    "folder/2 May 2018 - 3 of 185.heic": {
-        "date": "2018:05:02",
-        "time": "11:50:20",
-        "hasSidecar": false
-    },
-    [...]
-}
+This module started as a standalone thing (it was a script) and now it's here to support my GUI application.
+
+The proposed new name is obviously dependent of the context this class is used. As we are renaming our files relative
+to the other files present or selected to be renamed (e.g. opening a certain folder), a proposed new name might change
+depending on this.
+
+Classes:
+--------
+    MediaFile: an object to hold information about a media file and to provide a proposal for a new name for it
 
 Functions:
 ---------
@@ -39,12 +34,12 @@ Functions:
     on it, and the metadata needed in the renaming process
 """
 
-from subprocess import PIPE, run
-from json import load, JSONDecodeError, dumps
-from pathlib import Path
-from re import compile, search, match
-from logging import getLogger
 from collections import Counter
+from json import JSONDecodeError, dumps, load
+from logging import getLogger
+from pathlib import Path
+from re import compile, match, search
+from subprocess import PIPE, run
 from typing import Callable
 
 from natsort import os_sorted
@@ -477,26 +472,30 @@ GPSCoordsRegEx = compile(r"([0-9]+) deg ([0-9]+)' ([0-9.]+)\"")
 
 
 class MediaFile:
-    """
-    A class to represent any media file (video or photo)
+    """A class to represent any media file (video or photo)
 
     Instance Attributes:
     --------------------
     fileName: Path
         filename of the media file
-    dateTime: str
-        The date of creation: string with format YYYY:MM:DD HH:MM:SS+OO:OO(default: "")
-    hasSidecar: bool
-        Flag to indicate if object has sidecar (default: False)
+    dateTime: str | None
+        The date of creation: string with format YYYY-MM-DDTHH:MM:SS+OO:OO, or None if not known
+    sidecar: Path
+        Path to a sidecar if the file has one, or None if it doesn't
     source: str
-        Origin of the file: iPhone, WhatsApp, screenshot, camera... (default: "")
+        Origin of the file: iPhone, WhatsApp, screenshot, camera... because WhatsApp strips all the metadata of an image
+        before sending it (thank goodnes!) if there's nothin on the tags to allow identifying the source, it will
+        default to "Whatsapp"
+    newName: Path | None
+        If we have all the info needed to propose a new name (basically, Source and Date of Creation) the proposed
+        new name for this file.
     EXIFTags: dict[str, str]
         A list of the tags for the file found by EXIFTool. It can come handy at some point and it only takes a little
         bit of memory to keep them (while re-scanning takes quite a while).
 
-    Methods:
-    --------
-    fromExifTags
+    Class Methods
+    -------------
+    fromExifTags(etTagsDict): creates an instance of MediaFile from a dictionary containing Exif tags from Exiftool
 
     """
 
@@ -506,9 +505,10 @@ class MediaFile:
 
     # NOTE: Tested
     def __init__(self, fileName: Path, dateTime: str | None, EXIFTags: dict[str, str] | None = None):
-        """
-        Attributes:
-        -----------
+        """Initialise a MediaFile Object
+
+        Attributes
+        ----------
         fileName: Path
             filename of the media file
         dateTime: str
@@ -530,8 +530,8 @@ class MediaFile:
         self.EXIFTags: dict[str, str] = EXIFTags or {}
 
         self.newName: Path | None = None
-        self.sidecar: Path | None = self.findSidecar()
-        self.source: str = self.getFileSource()
+        self.sidecar: Path | None = self._findSidecar()
+        self.source: str = self._getFileSource()
 
     @classmethod
     def fromExifTags(cls, etTagsDict: dict[str, str]):
@@ -540,8 +540,11 @@ class MediaFile:
         Args:
             etTagsDict (dict[str, str]): a dictionary with the output of Exiftool as a JSON
 
+        Raises:
+            KeyError if the tags passed don't have at least a "SourceFile" key
+
         Returns:
-            _type_: if the dictionary passed has the required tags, an instance of MediaFile. Raises an exception
+            MediaFile: if the dictionary passed has the required tags, an instance of MediaFile. Raises an exception
             otherwise.
         """
         # Get the filename for the object
@@ -556,10 +559,9 @@ class MediaFile:
         return cls(fileName=filename_, dateTime=dateTime_, EXIFTags=etTagsDict)
 
     @staticmethod
-    # NOTE: Tested
     def _findCreationTime(exifToolData: dict[str, str]) -> str | None:
-        """
-        Returns the Creation Time and Date (in the local time) of creation of a file
+        """Returns the Creation Time and Date (in the local time) of creation of a file
+
         with EXIF data and the time offset respect UTC, extracted from the metadata returned by
         ExifTool for that file, which is a list of attributes.
         If the file has no sources for a valid UTC offset, we will consider the dates UTC.
@@ -579,7 +581,6 @@ class MediaFile:
             date: a string with the creation date, time and offset of a file or an empty
             string if there is no valid date tags in the dictionary.
         """
-
         # We are asking EXIFTool to return the dates in `YYYY-MM-DDThh:mm:ss⨦oo:00` format. If the tag has offset info,
         # then obviously the offset is correct, but sometimes it returns +00:00 and then you have to check the presence
         # of offset tags.
@@ -687,27 +688,23 @@ class MediaFile:
             return date.format_common_iso()
         return None
 
-    # NOTE: Tested
     def __repr__(self):
-        """s
+        """String Representation method
+
         Returns a string with the representation of the object: this string could be used to init an instance
-        Example: MediaFile(fileName='Name', dateTime='1234-12-12 11-22-33+03:00', source="Apple iPhone 8")
+        Example: MediaFile(fileName='Name', dateTime='1234-12-12 11-22-33+03:00', EXIFTags={"SourceFile": "Name"})
         """
         return (
             f"{type(self).__name__}(fileName=Path('{self.fileName}'), dateTime='{self.dateTime}', "
             f"EXIFTags={self.EXIFTags})"
         )
 
-    def getNewName(self) -> None:
-        self.newName = Path("")
-
-    def hasMakeAndModel(self) -> str | None:
+    def _hasMakeAndModel(self) -> str | None:
         """Checks the Make and Model tags to determine the source of the file
 
         Returns:
             str | None: a string with the source if it can be built from Make and Model tags, None otherwise
         """
-
         # Check 'IFD0' tags, the most frequently used, and if not present, 'Keys'
         make: str | None = None
         if "IFD0:Make" in self.EXIFTags.keys():
@@ -743,27 +740,27 @@ class MediaFile:
 
         return None
 
-    def isScreenshot(self) -> str | None:
-        """Checks the tags to determine if the MediaFile is a Screenshot. Only for iOS, Android screenshots don't have
-        anything on them to identify them
+    def _isScreenshot(self) -> str | None:
+        """Checks the tags to determine if the MediaFile is a Screenshot
+
+        Only for iOS, Android screenshots don't have anything on them to identify them, but are normally located on its
+        own folder
 
         Returns:
             str | None: "Screenshot" if it's a iOS screenshot, None otherwise
         """
-
         for tag in USER_COMMENTS_TAGS_LIST:
             if tag in self.EXIFTags.keys():
                 if self.EXIFTags[tag].lower() == "screenshot":
                     return "iOS Screenshot"
         return None
 
-    def isInstragram(self) -> str | None:
+    def _isInstragram(self) -> str | None:
         """Checks the tags to determine if the MediaFile comes from one of Meta's platforms (Instagram/Facebook)
 
         Returns:
             str | None: "Instagram" if it's a iOS screenshot, None otherwise
         """
-
         # If there's any key with partial match with "Software", the list comprehension
         # will not be empty
         softwareKeys = [key for key in self.EXIFTags.keys() if "software" in key.lower()]
@@ -776,9 +773,11 @@ class MediaFile:
                     return "Instagram"
         return None
 
-    def isEditingSoftware(self) -> str | None:
-        """Rule to apply "Photosho Etc." to all the files that don't match any other rule and have an Edition Software
-        in the software tag (Photoshop, Lightroom, Gimp...)
+    def _isEditingSoftware(self) -> str | None:
+        """Rule to apply "Photosho Etc."
+
+        For all the files that don't match any other rule and have an Edition Software in the software tag (Photoshop,
+        Lightroom, Gimp...)
 
         Returns:
             str | None: "Photoshop Etc." if the MediaFile matches the rule, None otherwise
@@ -799,45 +798,51 @@ class MediaFile:
                     return "Photoshop Etc."
         return None
 
-    # NOTE: Tested
-
-    def isPicsArt(self) -> str | None:
-        """
-        Checks if a file comes from PicsArt
+    def _isPicsArt(self) -> str | None:
+        """Checks if a file comes from PicsArt
 
         Returns:
             str | None: "PicsArt" if it comes from PicsArt, None otherwise
         """
-
         if "IFD0:Software" in self.EXIFTags.keys() and self.EXIFTags["IFD0:Software"] == "PicsArt":
             return "PicsArt"
 
         return None
 
-    def getFileSource(self) -> str:
-        source = self.hasMakeAndModel()
+    def _getFileSource(self) -> str:
+        """Finds the source for a file
+
+        IS a cascading process, where different sources are tried in a certain order. If the file doesn't match any of
+        the groups, it probably doesn't have any tags on it to allow grouping it, so we assign the default "WhatsApp",
+        as Whatsapp photos are stripped of metadata before being sent.
+
+        Returns:
+            str: a string with the "Source" value for a file
+        """
+        source = self._hasMakeAndModel()
         if not source:
             # If no make/model, check for screenshot
-            source = self.isScreenshot()
+            source = self._isScreenshot()
         if not source:
             # Try now with Instagram pictures
-            source = self.isInstragram()
+            source = self._isInstragram()
         if not source:
             # Try now with PicsArt pictures
-            source = self.isPicsArt()
+            source = self._isPicsArt()
         if not source:
             # Process files coming from Photoshop, as they are normally "more relevant" than simply WhatsApp images,
             # they come from "somewhere" more important and I think they deserve their own category. They normally
             # come from a Camera, and Photoshop respects the EXIF tags, so they are in all likelihood already sourced.
             # I leave this rule as the last, just before getting it in the WhatsApp bucket
-            source = self.isEditingSoftware()
+            source = self._isEditingSoftware()
         if source:
             return source
         # Ultimately, if no other lead to get the source, asssume it's Whatsapp
         return "WhatsApp"
 
-    def findSidecar(self) -> Path | None:
+    def _findSidecar(self) -> Path | None:
         """Finds if a file has a sidecar associated with it
+
         For an image with name pattern `name.ext`, sidecars have the name pattern of `name.aae`
         or `nameO.aae`
 
@@ -868,11 +873,8 @@ class MediaFile:
 ###
 
 
-# NOTE: Tested
 def loadExifToolTagsFromFile(inputFile: Path) -> list[dict[str, str]]:
-    """
-    Reads the output file from the EXIFTool batch processing (a collection of EXIF
-    tags).
+    """Reads the output file from the EXIFTool batch processing (a collection of EXIF tags).
 
     The input JSON file contains tags from EXIFTool.
     NOTE: be careful with paths!
@@ -899,12 +901,11 @@ def loadExifToolTagsFromFile(inputFile: Path) -> list[dict[str, str]]:
     return etData
 
 
-# NOTE: Tested
 def generateSortedMediaFileList(
     etData: list[dict[str, str]], itemProcessedCallBack: Callable[[], None] | None = None
 ) -> list[MediaFile]:
-    """
-    Creates a list of MediaFile objects from a list of dictionaries with tags comming from
+    """Creates a list of MediaFile objects from a list of dictionaries with tags comming from
+
     EXIFTool. The list is sorted by filename using natural sorting (as in "Windows Explorer Sorting")
 
     Args:
@@ -913,8 +914,8 @@ def generateSortedMediaFileList(
         itemProcessedCallBack: Callable (() -> None ) | None. If passed, a callback to call on each item processed
         completion to indicate the progress.
 
-     Returns:
-        list[MediaFile]: a list of MediaFile objects, ready to be processed
+    Returns:
+        list[MediaFile]: a list of MediaFile objects, ready to be processed, sorted with a "natural sort" algo.
     """
     mediaFileList: list[MediaFile] = []
 
@@ -960,67 +961,17 @@ def getFilesInFolder(inputFolder: Path) -> int:
     return numFiles
 
 
-# # NOTE: Tested
-# def loadMediaFileListFromFile(inputFile: Path) -> list[MediaFile]:
-#     """Loads and returns a list of MediaFile objects stored in a file passed as input
-
-#     Args:
-#         inputFile (Path): a file containing a list of MediaFile objects as text
-
-#     Returns:
-#         list[MediaFile]: a list of MediaFile objects
-#     """
-#     mediaFileList: list[MediaFile] = []
-#     try:
-#         with open(inputFile, "r") as readFile:
-#             mediaFileData: str = readFile.read()
-#     except FileNotFoundError:
-#         module_logger.error(f"{inputFile} could not be found")
-#         raise
-
-#     try:
-#         mediaFileList = eval(mediaFileData)
-#     except SyntaxError:
-#         module_logger.error(f"{inputFile} contents could not be eval()'ed")
-#         raise
-
-#     if not isinstance(mediaFileList[0], MediaFile):
-#         raise TypeError(f"{inputFile} didn't contain a list of MediaFile")
-
-#     return mediaFileList
-
-
-# NOTE: Tested
 def storeMediaFileListTags(outputFile: Path, listMediaFiles: list[MediaFile]) -> None:
-    """
-    Stores the EXIT tags of a list of MediaFile in a JSON file , so it's easy to rebuild it.
+    """Stores the EXIT tags of a list of MediaFile in a JSON file , so it's easy to rebuild it at a later time
 
     Args:
         outputFile (Path): name of the file to store the data to.
-        listTags (list[MediaFile]): a list of MediaFile objects.
+        listMediaFiles (list[MediaFile]): a list of MediaFile objects.
     """
     with open(outputFile, "w") as writeFile:
         writeFile.write("[")
         writeFile.write(",".join([dumps(instance.EXIFTags) for instance in listMediaFiles]))
-        # for instance in listMediaFiles:
-        #     writeFile.write(dumps(instance.EXIFTags))
-        #     writeFile.write(",")
         writeFile.write("]")
-
-
-# # NOTE: Tested
-# def storeExifToolTags(outputFile: Path, listTags: list[dict[str, str]]) -> None:
-#     """
-#     Stores the list tags passed as parameter in the file specified
-
-#     Args:
-#         outputFile (Path): name of the file to store the data to.
-#         listTags (list[dict[str,str]]): a list of dictionaries, containing the EXIF tags
-#         as key-value pairs, from EXIFTool
-#     """
-
-#     with open(outputFile, "w") as writeFile:
-#         writeFile.write(str(listTags))
 
 
 ####
@@ -1061,9 +1012,8 @@ def isTagATimeTag(tag: str) -> bool:
     return False
 
 
-# NOTE: Tested
 def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: list[MediaFile]) -> tuple[str | None, str | None]:
-    """infers the date of creation of a dateless item in a list of MediaFile, based on the file's neighbours' dates.
+    """Infers the date of creation of a dateless item in a list of MediaFile, based on the file's neighbours' dates.
 
     The list has to be ordered by filename, otherwise the times we infer might not be very relevant
 
@@ -1078,7 +1028,6 @@ def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: list[MediaFile]) 
         The returned values are a dateTime with offset as a string (`YYYY-MM-DDTHH:MM:SS±OO:OO`) or None if no dated
         item could be found on that side of the list.
     """
-
     inferredDateLeft: str | None = None
     inferredDateRight: str | None = None
     datedObjectIdxLeft: int | None = None
@@ -1130,10 +1079,22 @@ def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: list[MediaFile]) 
     return (inferredDateLeft, inferredDateRight)
 
 
-# ### STEP 2 Process Data and Extract
+###
+# Renaming
+###
 
 
 def findNewNames(mediaFileList: list[MediaFile], parentFolder: Path) -> None:
+    """Goes through a list of MediaFile and proposes new names for them
+
+    The renaming process is dependent on the context from where its called (a file can affect the proposed names of
+    its "neighbours), so that's why we need a list of MediaFile for this to work (instead of calling it on individual
+    instances).
+
+    Args:
+        mediaFileList (list[MediaFile]): the list of MediaFile to loop through
+        parentFolder (Path): the parent folder to use as a base for the renaming process.
+    """
     # Create a list of available sources
     availableSources = set([instance.source for instance in mediaFileList])
 
@@ -1159,6 +1120,7 @@ def findNewNames(mediaFileList: list[MediaFile], parentFolder: Path) -> None:
                 dateHistogramLoop[onlyDate] += 1
                 mediaFile.newName = Path(
                     parentFolder,
+                    # TODO: add year here as first level
                     source
                     + "/"
                     + onlyDate
@@ -1168,123 +1130,3 @@ def findNewNames(mediaFileList: list[MediaFile], parentFolder: Path) -> None:
                     + f"{dateHistogramLoop[onlyDate]:>0{numberOfZeroes}}"
                     + mediaFile.fileName.suffix,
                 )
-
-
-# def findNewNames(
-#     mediaFileList: list[MediaFile],
-#     photosDir: Path,
-#     isDryRun: bool = False,
-#     namePattern: str = "iPhone",
-#     selectionSubfolder: str = "",
-# ) -> None:
-#     """
-#     Performs a mass rename based on the contents of a JSON file generated on a previous
-#     step.
-
-#     Args:
-#         fileName: the path to the folder containing the JSON file with the files to rename
-#         isDryRun: a debugging bool flag. If true, no rename ops are performed, just printed
-#         on screen. False by default (perform rename by default)
-#         namePatter: the string pattern to use to rename the files, "iPhone" if none passed.
-#     """
-#     # Date Histogram:
-#     # Find how many entries share the same date. We want to know this to figure out
-#     # how many zeroes the file index will have, so they are naturally sorted in the
-#     # file explorer
-#     dateHistogram: dict[str, int] = Counter(instance.dateTime for instance in mediaFileList if instance.dateTime)
-
-#     # Counter used to name the files, starts on 1, and increases for each file with the
-#     # same capture date
-#     # One for no
-#     counter: int = 1
-#     # String used to find when the date changes
-#     prevDateStr: str = ""
-#     for key in jsonData:
-#         dateStr = jsonData[key]["date"]
-#         numberOfZeroes = len(str(dateHistogram[dateStr]))
-#         # module_logger.info(f"{dateStr} has {dateHistogram[dateStr]} files")
-#         # Check the current date, and if it's the same as the previous one, increase counter. Otherwise, reset it to 1
-#         if dateStr == prevDateStr:
-#             counter += 1
-#         else:
-#             counter = 1
-
-#         # This is the list of files we are going to hanlde:
-#         # Store the current file and the name the file will have after the rename, as Paths
-#         currentFile = Path(key)
-#         renamedFile = (
-#             photosDir
-#             / selectionSubfolder
-#             / f"{dateStr.replace(':', '-')} - {namePattern} {counter:>0{numberOfZeroes}}{currentFile.suffix}"
-#         )
-
-
-#         # Check if the file has a sidecar. They have the same filename than their parent file
-#         # with .aae extension, but sometimes they have an 'O' at the end of the name ¯\_(ツ)_/¯
-#         sidecarPath: Path = Path()
-#         renamedSidecarPath = renamedFile.with_suffix(".aae")
-
-#         # Print the name of the folder, if it's the first file in this folder we process
-#         global oldDirectory
-#         if currentFile.parent != oldDirectory:
-#             module_logger.info(f"In {currentFile.parent}:")
-#         oldDirectory = currentFile.parent  # and remember current folder for next run
-
-#         if jsonData[key]["hasSidecar"]:
-#             # Sometimes the sidecar has O at the end of the filename (most of the times), sometimes
-#             # it doesn't. If the file with the O doesn't exist, try without it
-#             sidecarPath = currentFile.parent / f"{currentFile.stem}O.aae"
-#             if not sidecarPath.is_file():
-#                 # module_logger.error("NO SIDECAR FOUND WITH O.aae, trying without O")
-#                 sidecarPath = currentFile.parent / f"{currentFile.stem}.aae"
-#                 if not sidecarPath.is_file():
-#                     module_logger.error("NO SIDECAR FOUND WITH OR WITHOUT O.aae PATTERN")
-#                 else:
-#                     # module_logger.info(, "SIDECAR FOUND WITH O.aae pattern")
-#                     pass  # leaving this in case I want to enable the debug log
-#             else:
-#                 # module_logger.info(, "SIDECAR FOUND WITH O.aae pattern")
-#                 pass  # leaving this in case I want to enable the debug log
-
-#         # Check if the file exists before doing anything on it. This is useful to skip files that
-#         # have been processed in previous passes, without having to recreate the JSON file
-#         # Print the folder name the first time we see a "new folder"
-#         if isDryRun == False:
-#             # It's time to rename the files...
-#             if currentFile.is_file():
-#                 # if file exists, rename (maybe was renamed on previous runs)
-#                 currentFile.replace(renamedFile)
-#             if sidecarPath.is_file():
-#                 module_logger.info(f"Trying with sidecar {sidecarPath.name} for file {renamedFile.name}")
-#                 sidecarPath.replace(renamedSidecarPath)
-#         else:
-#             # If dry-run is used, only print name changes
-#             print(lvl.OK + f"File Name: {currentFile.name}\t->\t" + lvl.WARNING + f"{renamedFile.name}")
-#             if jsonData[key]["hasSidecar"]:
-#                 module_logger.error(f"\t And also rename sidecar {sidecarPath.name} to {renamedSidecarPath.name}")
-#         prevDateStr = dateStr
-
-
-# def generateMediaFileList(EXIFTagFile: Path) -> None:
-#     # # Being quite explicit:
-#     # # 1) read exif tags from file -> generate list of dicts
-#     # exifDicts: list[dict[str, str]] = loadExifToolTagsFromFile(EXIFTagFile)
-#     # # 2) Use list of dicts -> generate list of MediaFile
-#     # mediaList: list[MediaFile] = generateSortedMediaFileList(exifDicts)
-#     # print(mediaList)
-#     # # 3) Store MediaFile list on disk
-#     # storeMediaFileList(objectFile, mediaList)
-#     # # 4) Find Dateless, try to correct them by hand
-#     # dateless = [instance for instance in mediaList if instance.dateTime is None]
-#     # print(dateless)
-#     # print(f"Found {len(dateless)} {'instance' if (len(dateless) == 1) else 'instances'} without date")
-#     # for item in dateless:
-#     #     # find item in mediaList
-#     #     idx = mediaList.index(item)
-#     #     newDate = fixDateInteractive(idx, mediaList)
-#     #     if newDate:
-#     #         medialist[idx].dateTime = newDate
-
-#     # storeMediaFileList(objectFile, mediaList)
-
-#     return
