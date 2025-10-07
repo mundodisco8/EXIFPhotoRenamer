@@ -439,11 +439,11 @@ TIME_TAGS_LIST: list[str] = [
 DATE_TAGS_TO_CHECK: list[str] = [
     "ExifIFD:DateTimeOriginal",
     "QuickTime:DateTimeOriginal",
-    "XMP:DateTimeOriginal",
+    "XMP-exif:DateTimeOriginal",
     "ExifIFD:CreateDate",
     "QuickTime:CreateDate",
+    "XMP-xmp:CreateDate",
     "PNG:CreateDate",
-    "XMP:CreateDate",
     "QuickTime: CreationDate",
     "XMP-photoshop:DateCreated",  # in some iPhone pngs...
 ]
