@@ -1,13 +1,14 @@
 from enum import StrEnum
 
-from PySide6.QtCore import Qt, QAbstractListModel, QAbstractTableModel, QModelIndex, QPersistentModelIndex
+from PySide6.QtCore import QAbstractListModel, QAbstractTableModel, QModelIndex, QPersistentModelIndex, Qt
 from PySide6.QtGui import QColor, QFont
 
 from MassRenamer.MassRenamerClasses import MediaFile, isTagATimeTag
 
 
 class SunnyBeach(StrEnum):
-    # Sunny Beach Day Palette
+    """Sunny Beach Day Palette"""
+
     blue = "#70a7bd"
     teal = "#7bdcd0"
     yellow = "#f3dfaf"
@@ -36,7 +37,7 @@ class toRenameModel(QAbstractTableModel):
         self.toRenameList: list[tuple[str, str]] = []
         if mediaFileList:
             for instance in mediaFileList:
-                if instance.newName:
+                if instance.newName and instance.fileName != instance.newName:
                     self.toRenameList.append((str(instance.fileName), str(instance.newName)))
 
     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
@@ -59,9 +60,17 @@ class toRenameModel(QAbstractTableModel):
     def replaceListOfFiles(self, mediaFileList: list[MediaFile]) -> None:
         self.toRenameList = []
         for instance in mediaFileList:
-            if instance.newName:
+            if instance.newName and instance.fileName != instance.newName:
                 self.toRenameList.append((str(instance.fileName), str(instance.newName)))
         self.layoutChanged.emit()
+
+    def returnColumn(self, column: int) -> list[str]:
+        retList: list[str] = []
+        if column > self.columnCount():
+            return []
+        for item in self.toRenameList:
+            retList.append(item[column])
+        return retList
 
 
 class showDatelessModel(QAbstractTableModel):
@@ -78,7 +87,6 @@ class showDatelessModel(QAbstractTableModel):
             datelessItemsList (list[tuple[str,str]] | None, optional): A list of files that don't have a clear date.
             Defaults to None.
         """
-
         self.columns = ["Filename", "Proposed New Date"]
         super().__init__()
         self.datelessItemsList: list[tuple[str, str]] = []

@@ -48,7 +48,6 @@ jobs:
       - name: Test with pytest with coverage
         # Creates a coverage report in xml format, following the rules in `.coveragerc`
         run: python -m pytest --cov --cov-report=xml
-        continue-on-error: true
 
       - name: Lint with Ruff
         # Lints the project, using the rules in ruff.toml

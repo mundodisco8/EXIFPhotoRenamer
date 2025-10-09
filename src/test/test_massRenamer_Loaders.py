@@ -1,18 +1,16 @@
-"""
-This file contains tests for methods that either load info from files or store into into files on the massRenamer module
-"""
-
-from pytest import raises
-from pytest_mock import MockerFixture
+"""Tests for methods that either load info from files or store into into files on the massRenamer module"""
 
 from json import loads
 from json.decoder import JSONDecodeError
 from pathlib import Path
 
+from pytest import raises
+from pytest_mock import MockerFixture
+
 from src.MassRenamer.MassRenamerClasses import (
-    loadExifToolTagsFromFile,
-    generateSortedMediaFileList,
     MediaFile,
+    generateSortedMediaFileList,
+    loadExifToolTagsFromFile,
     storeMediaFileListTags,
 )
 
@@ -246,7 +244,7 @@ def test_loadExifToolTagsFromFile_success(mocker: MockerFixture):
     retVal = loadExifToolTagsFromFile(Path("testinput.json"))
 
     ### Assert
-    mockFileOpen.assert_called_once_with(Path("testinput.json"), "r")
+    mockFileOpen.assert_called_once_with(Path("testinput.json"))
     assert retVal[0]["SourceFile"] == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov"
     assert retVal[1]["QuickTime:Model"] == "iPhone 8"
 

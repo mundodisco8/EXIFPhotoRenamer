@@ -57,7 +57,7 @@ def test_getSources_Success():
     expectedSource = "MyMaker MyModel"
 
     ### Run
-    source = mediaFile.getFileSource()
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSource == source
@@ -72,7 +72,7 @@ def test_getSources_Apple():
     expectedSource = "iPhone 13 mini"
 
     ### Run
-    source = mediaFile.getFileSource()
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSource == source
@@ -85,7 +85,7 @@ def test_getSources_Google():
     expectedSource = "Pixel 7"
 
     ### Run
-    source = mediaFile.getFileSource()
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSource == source
@@ -100,7 +100,7 @@ def test_getSources_Olympus():
     expectedSource = "Olympus ABC"
 
     ### Run
-    source = mediaFile.getFileSource()
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSource == source
@@ -114,7 +114,7 @@ def test_getSources_Quicktime():
     expectedSource = "MyMaker MyModel"
 
     ### Run
-    source = mediaFile.getFileSource()
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSource == source
@@ -127,7 +127,7 @@ def test_getSources_screenshot():
     expectedSource = "iOS Screenshot"
 
     ### Run
-    source = mediaFile.getFileSource()
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSource == source
@@ -143,8 +143,8 @@ def test_getSources_Instagram():
     expectedSource2 = "Instagram"
 
     ### Run
-    source = mediaFile.getFileSource()
-    source2 = mediaFile2.getFileSource()
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+    source2 = mediaFile2._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSource == source
@@ -158,7 +158,7 @@ def test_getSources_PicsArt():
     expectedSource = "PicsArt"
 
     ### Run
-    source = mediaFile.getFileSource()
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSource == source
@@ -234,12 +234,12 @@ def test_getSources_testPrecedenceOrder():
     expectedSource6 = "WhatsApp"
 
     ### Run
-    source1 = mediaFile1.getFileSource()
-    source2 = mediaFile2.getFileSource()
-    source3 = mediaFile3.getFileSource()
-    source4 = mediaFile4.getFileSource()
-    source5 = mediaFile5.getFileSource()
-    source6 = mediaFile6.getFileSource()
+    source1 = mediaFile1._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+    source2 = mediaFile2._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+    source3 = mediaFile3._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+    source4 = mediaFile4._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+    source5 = mediaFile5._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+    source6 = mediaFile6._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSource1 == source1
@@ -283,7 +283,7 @@ def test_getSidecar_sidecarWithSameName():
     expectedSideCarPath = Path("sidecarExists.aae")
 
     ### Run
-    sidecarPath = mediaFile.findSidecar()
+    sidecarPath = mediaFile._findSidecar()  # pyright: ignore[reportPrivateUsage] testing private method  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSideCarPath == sidecarPath
@@ -312,7 +312,7 @@ def test_getSidecar_sidecarWithOSuffix():
     expectedSideCarPath = Path("sidecarExistsO.aae")
 
     ### Run
-    sidecarPath = mediaFile.findSidecar()
+    sidecarPath = mediaFile._findSidecar()  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSideCarPath == sidecarPath
@@ -338,7 +338,7 @@ def test_getSidecar_sidecarDoesntExist():
     expectedSideCarPath = None
 
     ### Run
-    sidecarPath = mediaFile.findSidecar()
+    sidecarPath = mediaFile._findSidecar()  # pyright: ignore[reportPrivateUsage] testing private method
 
     ### Assert
     assert expectedSideCarPath == sidecarPath
