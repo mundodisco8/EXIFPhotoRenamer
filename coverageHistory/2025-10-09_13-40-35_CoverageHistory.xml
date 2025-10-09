@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<coverage version="1.0" date="2025-10-09_13-40-35" tag="73_18378289766">
+  <assembly name="src.MassRenamer">
+    <class name="MassRenamerClasses.py" coveredlines="205" coverablelines="239" totallines="1133" coveredbranches="0" totalbranches="0" coveredcodeelements="0" fullcoveredcodeelements="0" totalcodeelements="0" />
+  </assembly>
+</coverage>
