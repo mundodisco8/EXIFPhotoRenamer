@@ -37,7 +37,7 @@ class toRenameModel(QAbstractTableModel):
         self.toRenameList: list[tuple[str, str]] = []
         if mediaFileList:
             for instance in mediaFileList:
-                if instance.newName:
+                if instance.newName and instance.fileName != instance.newName:
                     self.toRenameList.append((str(instance.fileName), str(instance.newName)))
 
     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
@@ -60,9 +60,17 @@ class toRenameModel(QAbstractTableModel):
     def replaceListOfFiles(self, mediaFileList: list[MediaFile]) -> None:
         self.toRenameList = []
         for instance in mediaFileList:
-            if instance.newName:
+            if instance.newName and instance.fileName != instance.newName:
                 self.toRenameList.append((str(instance.fileName), str(instance.newName)))
         self.layoutChanged.emit()
+
+    def returnColumn(self, column: int) -> list[str]:
+        retList: list[str] = []
+        if column > self.columnCount():
+            return []
+        for item in self.toRenameList:
+            retList.append(item[column])
+        return retList
 
 
 class showDatelessModel(QAbstractTableModel):
