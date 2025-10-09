@@ -39,7 +39,7 @@ from json import JSONDecodeError, dumps, load
 from logging import getLogger
 from pathlib import Path
 from re import compile, match, search
-from subprocess import PIPE, run
+from subprocess import run
 from typing import Callable
 
 from natsort import os_sorted
@@ -530,8 +530,8 @@ class MediaFile:
         self.EXIFTags: dict[str, str] = EXIFTags or {}
 
         self.newName: Path | None = None
-        self.sidecar: Path | None = self._findSidecar()
-        self.source: str = self._getFileSource()
+        self.sidecar: Path | None = self._findSidecar()  # pyright: ignore[reportPrivateUsage] testing private method
+        self.source: str = self._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
 
     @classmethod
     def fromExifTags(cls, etTagsDict: dict[str, str]):
@@ -887,7 +887,7 @@ def loadExifToolTagsFromFile(inputFile: Path) -> list[dict[str, str]]:
     """
     etData: list[dict[str, str]] = []
     try:
-        with open(inputFile, "r") as readFile:
+        with open(inputFile) as readFile:
             # Check the file has JSON data on it
             try:
                 etData = load(readFile)
@@ -952,7 +952,7 @@ def getFilesInFolder(inputFolder: Path) -> int:
     """
     numFiles: int = 0
     cmdFind: list[str | Path] = ["exiftool", "-listdir", "-r", '"' + str(inputFolder) + '"']
-    p = run(" ".join(str(x) for x in cmdFind), stdout=PIPE, stderr=PIPE, shell=True, text=True)
+    p = run(" ".join(str(x) for x in cmdFind), capture_output=True, shell=True, text=True)
     result = search("([0-9]*) image files read", p.stdout)
     if result:
         numFiles = int(result.group(1))

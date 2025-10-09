@@ -1,18 +1,16 @@
-"""
-This file contains tests for methods that either load info from files or store into into files on the massRenamer module
-"""
-
-from pytest import raises
-from pytest_mock import MockerFixture
+"""Tests for methods that either load info from files or store into into files on the massRenamer module"""
 
 from json import loads
 from json.decoder import JSONDecodeError
 from pathlib import Path
 
+from pytest import raises
+from pytest_mock import MockerFixture
+
 from src.MassRenamer.MassRenamerClasses import (
-    loadExifToolTagsFromFile,
-    generateSortedMediaFileList,
     MediaFile,
+    generateSortedMediaFileList,
+    loadExifToolTagsFromFile,
     storeMediaFileListTags,
 )
 

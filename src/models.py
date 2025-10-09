@@ -1,13 +1,14 @@
 from enum import StrEnum
 
-from PySide6.QtCore import Qt, QAbstractListModel, QAbstractTableModel, QModelIndex, QPersistentModelIndex
+from PySide6.QtCore import QAbstractListModel, QAbstractTableModel, QModelIndex, QPersistentModelIndex, Qt
 from PySide6.QtGui import QColor, QFont
 
 from MassRenamer.MassRenamerClasses import MediaFile, isTagATimeTag
 
 
 class SunnyBeach(StrEnum):
-    # Sunny Beach Day Palette
+    """Sunny Beach Day Palette"""
+
     blue = "#70a7bd"
     teal = "#7bdcd0"
     yellow = "#f3dfaf"
@@ -78,7 +79,6 @@ class showDatelessModel(QAbstractTableModel):
             datelessItemsList (list[tuple[str,str]] | None, optional): A list of files that don't have a clear date.
             Defaults to None.
         """
-
         self.columns = ["Filename", "Proposed New Date"]
         super().__init__()
         self.datelessItemsList: list[tuple[str, str]] = []
