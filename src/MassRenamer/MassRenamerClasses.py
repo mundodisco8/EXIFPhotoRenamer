@@ -1114,13 +1114,14 @@ def findNewNames(mediaFileList: list[MediaFile], parentFolder: Path) -> None:
 
         for mediaFile in mediaFileList:
             if mediaFile.source == source and mediaFile.dateTime:
+                onlyYear: str = str(OffsetDateTime.parse_common_iso(mediaFile.dateTime).date().year)
                 onlyDate: str = OffsetDateTime.parse_common_iso(mediaFile.dateTime).date().format_common_iso()
                 # Name is "Date" + "Source" + "Number of file in that date" + "same file suffix"
                 numberOfZeroes = len(str(dateHistogram[onlyDate]))
                 dateHistogramLoop[onlyDate] += 1
                 mediaFile.newName = Path(
                     parentFolder,
-                    # TODO: add year here as first level
+                    onlyYear,
                     source
                     + "/"
                     + onlyDate
