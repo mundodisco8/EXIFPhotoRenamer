@@ -15,7 +15,7 @@ def test_rename_SuccessOneFile():
     testMediaFileList = [
         MediaFile(Path("MyFile.jpg"), "2025-01-02T01:02:03+00:00", {"IFD0:Make": "MyMaker", "IFD0:Model": "MyModel"})
     ]
-    expectedNewName = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 1.jpg")
+    expectedNewName = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 1.jpg")
 
     ### Run
     findNewNames(testMediaFileList, Path("test"))
@@ -37,9 +37,9 @@ def test_rename_SuccessManyFilesWithSameDay():
         for _ in range(150)
     ]
 
-    expectedNewNames0 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 001.jpg")
-    expectedNewNames136 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 137.jpg")
-    expectedNewNameLast = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 150.jpg")
+    expectedNewNames0 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 001.jpg")
+    expectedNewNames136 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 137.jpg")
+    expectedNewNameLast = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 150.jpg")
 
     ### Run
     findNewNames(testMediaFileList, Path("test"))
@@ -66,11 +66,11 @@ def test_rename_SuccessManyFilesWithSameDay_SkipNoDates():
         MediaFile(Path("MyFile.jpg"), "2025-01-02T01:02:03+00:00", {"IFD0:Make": "MyMaker", "IFD0:Model": "MyModel"}),
     ]
 
-    expectedNewName0 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 1.jpg")
+    expectedNewName0 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 1.jpg")
     expectedNewName1 = None
-    expectedNewName2 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 2.jpg")
+    expectedNewName2 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 2.jpg")
     expectedNewName3 = None
-    expectedNewName4 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 3.jpg")
+    expectedNewName4 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 3.jpg")
 
     ### Run
     findNewNames(testMediaFileList, Path("test"))
@@ -100,11 +100,11 @@ def test_rename_SuccessManyFilesWithSameDay_RelocateToSameFolder():
         MediaFile(Path("E/MyFile.jpg"), "2025-01-02T01:02:03+00:00", {"IFD0:Make": "MyMaker", "IFD0:Model": "MyModel"}),
     ]
 
-    expectedNewName0 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 1.jpg")
-    expectedNewName1 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 2.jpg")
-    expectedNewName2 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 3.jpg")
-    expectedNewName3 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 4.jpg")
-    expectedNewName4 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 5.jpg")
+    expectedNewName0 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 1.jpg")
+    expectedNewName1 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 2.jpg")
+    expectedNewName2 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 3.jpg")
+    expectedNewName3 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 4.jpg")
+    expectedNewName4 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 5.jpg")
 
     ### Run
     findNewNames(testMediaFileList, Path("test"))
@@ -131,10 +131,10 @@ def test_rename_differentSources():
         for _ in range(150)
     ]
     testMediaFileList = testMediaFileMyMaker + testMediaFileScreenshot
-    expectedName0 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 001.jpg")
-    expectedName14 = Path("test/MyMaker MyModel/2025-01-02 MyMaker MyModel 015.jpg")
-    expectedNameFirstScreenShot = Path("test/iOS Screenshot/2025-01-02 iOS Screenshot 001.jpg")
-    expectedNameLast = Path("test/iOS Screenshot/2025-01-02 iOS Screenshot 150.jpg")
+    expectedName0 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 001.jpg")
+    expectedName14 = Path("test/2025/MyMaker MyModel/2025-01-02 MyMaker MyModel 015.jpg")
+    expectedNameFirstScreenShot = Path("test/2025/iOS Screenshot/2025-01-02 iOS Screenshot 001.jpg")
+    expectedNameLast = Path("test/2025/iOS Screenshot/2025-01-02 iOS Screenshot 150.jpg")
 
     ### Run
     findNewNames(testMediaFileList, Path("test"))
