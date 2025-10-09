@@ -244,7 +244,7 @@ def test_loadExifToolTagsFromFile_success(mocker: MockerFixture):
     retVal = loadExifToolTagsFromFile(Path("testinput.json"))
 
     ### Assert
-    mockFileOpen.assert_called_once_with(Path("testinput.json"), "r")
+    mockFileOpen.assert_called_once_with(Path("testinput.json"))
     assert retVal[0]["SourceFile"] == "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov"
     assert retVal[1]["QuickTime:Model"] == "iPhone 8"
 
