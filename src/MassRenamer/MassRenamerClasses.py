@@ -38,7 +38,7 @@ from collections import Counter
 from json import JSONDecodeError, dumps, load
 from logging import getLogger
 from pathlib import Path
-from re import compile, match, search, sub, IGNORECASE
+from re import IGNORECASE, compile, match, search, sub
 from subprocess import run
 from typing import Callable
 

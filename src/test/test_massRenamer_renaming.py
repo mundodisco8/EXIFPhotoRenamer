@@ -2,15 +2,14 @@ from pathlib import Path
 
 from src.MassRenamer.MassRenamerClasses import MediaFile, findNewNames
 
-
 """
 Renamer Algorithm
 
 """
 
 
-# Testing with one single file
 def test_rename_SuccessOneFile():
+    """Testing with one single file"""
     ### Prepare
     testMediaFileList = [
         MediaFile(Path("MyFile.jpg"), "2025-01-02T01:02:03+00:00", {"IFD0:Make": "MyMaker", "IFD0:Model": "MyModel"})
@@ -24,8 +23,8 @@ def test_rename_SuccessOneFile():
     assert expectedNewName == testMediaFileList[0].newName
 
 
-# Test with some more files, check that we insert a 0 in the first 9 files 1-9 -> 01-09
 def test_rename_SuccessManyFilesWithSameDay():
+    """Test with some more files, check that we insert a 0 in the first 9 files 1-9 -> 01-09"""
     ### Prepare
     # Python trap! this creates an array with 150 references to the same object!!!
     # testMediaFileList = [
@@ -50,8 +49,8 @@ def test_rename_SuccessManyFilesWithSameDay():
     assert expectedNewNameLast == testMediaFileList[-1].newName
 
 
-# Test multiple files, but some of them must be skipped as they don't have a date
 def test_rename_SuccessManyFilesWithSameDay_SkipNoDates():
+    """Test multiple files, but some of them must be skipped as they don't have a date"""
     ### Prepare
     # Python trap! this creates an array with 150 references to the same object!!!
     # testMediaFileList = [
@@ -83,9 +82,11 @@ def test_rename_SuccessManyFilesWithSameDay_SkipNoDates():
     assert expectedNewName4 == testMediaFileList[4].newName
 
 
-# Test with files that share a source, but are located in different folders. The files will be relocated to a common
-# folder with the source name
 def test_rename_SuccessManyFilesWithSameDay_RelocateToSameFolder():
+    """Test with files that share a source, but are located in different folders.
+
+    The files will be relocated to a common folder with the source name
+    """
     ### Prepare
     # Python trap! this creates an array with 150 references to the same object!!!
     # testMediaFileList = [
@@ -119,8 +120,8 @@ def test_rename_SuccessManyFilesWithSameDay_RelocateToSameFolder():
     assert Path("E/MyFile.jpg") == testMediaFileList[4].fileName
 
 
-# Files from different sources get sorted together, stored in a folder with the source name
 def test_rename_differentSources():
+    """Files from different sources get sorted together, stored in a folder with the source name"""
     ### Prepare
     testMediaFileMyMaker = [
         MediaFile(Path("MyFile.jpg"), "2025-01-02T01:02:03+00:00", {"IFD0:Make": "MyMaker", "IFD0:Model": "MyModel"})

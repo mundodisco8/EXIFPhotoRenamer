@@ -25,6 +25,7 @@ hasDateTimeOriginalWithOffsetDict: dict[str, str] = {
 
 
 def test_findCreationTime_hasDateTimeOriginalWithOffset():
+    """Find a creation time in a file that has EXIF:DateTimeOriginal, date string has offset"""
     ### Prepare the test
     expectedDateTimeStr = "2025-01-01T10:48:44+00:00"
 
@@ -43,6 +44,7 @@ PNGCreationDateDict: dict[str, str] = {
 
 
 def test_findCreationTime_hasPNGDate():
+    """Find the creation time in a file that has PGN:CreateDate, date string does has offset"""
     ### Prepare the test
     expectedDateTimeStr = "2025-01-01T00:45:59+00:00"
 
@@ -74,6 +76,7 @@ noOffsetInTagButHasOffsetTag: dict[str, str] = {
 
 
 def test_findCreationTime_hasOffsetInAnotherTag():
+    """Find the creation time in a file that has EXIF:DateTimeOriginal, date has no offset but there's an offset tag"""
     ### Prepare the test
     expectedDateTimeStr = "2025-01-01T10:48:44+01:00"
 
@@ -110,6 +113,7 @@ noOffsetInTagOffsetTagWrong: dict[str, str] = {
 
 
 def test_findCreationTime_hasOffsetTagButOffsetWrong():
+    """We got a date, but offset is in a separate tag and the format is wrong, we raise an exception"""
     # Check that ValueError is raised
     with raises(ValueError):
         MediaFile._findCreationTime(noOffsetInTagOffsetTagWrong)  # pyright: ignore[reportPrivateUsage]
@@ -121,6 +125,7 @@ noOffset: dict[str, str] = {
 
 
 def test_findCreationTime_noOffset_ConsiderUTC():
+    """We have a date, but no offset, so we assume is UTC"""
     ### Prepare the test
     expectedDateTimeStr = "2025-01-01T10:48:44+00:00"
 
@@ -140,6 +145,7 @@ noDates: dict[str, str] = {
 
 
 def test_findCreationDate_noDates():
+    """The file has no valid date tag, so it returns None"""
     ### Prepare the test
     expectedDateTimeStr = None
 
@@ -161,8 +167,9 @@ GPSCoordinatesDict: dict[str, str] = {
 
 
 def test_findCreationTime_GPSCoordinates():
+    """Test we can patch together a time with the GPS tags, extracting the offset from the GEO coordinates!"""
     ### Prepare the test
-    # 10:48 UTC with Europe/Madrid coordinates is 11:41+001:00
+    # 10:48 UTC with Europe/Madrid coordinates is 11:48+01:00
     expectedDateTimeStr = "2025-01-01T11:48:44+01:00"
 
     ### Execute
@@ -183,6 +190,7 @@ GPSCoordinatesSouthWestDict: dict[str, str] = {
 
 
 def test_findCreationTime_GPSCoordinatesSouthWest():
+    """Same as above, but testing with a Sout/West coordiante pair"""
     ### Prepare the test
     # 10:48 UTC with Brasil/Sao Paulo coordinates is 06:41-04:00
     expectedDateTimeStr = "2025-01-01T06:48:44-04:00"
@@ -206,6 +214,7 @@ GPSCoordinatesIgnoreOffsetDict: dict[str, str] = {
 
 
 def test_findCreationTime_GPSCoordinatesIgnoreOffset():
+    """Test that GPS coordinates take priority over a date offset"""
     ### Prepare the test
     # 10:48 UTC with Europe/Madrid coordinates is 11:41+001:00
     expectedDateTimeStr = "2025-01-01T11:48:44+01:00"
@@ -251,8 +260,8 @@ exifTagsForTest1 = [
 ]
 
 
-# Test one is the simplest case, where the dateless item has dated items on both sides, just next to it
 def test_inferDateFromNeighboursTest1():
+    """The simplest case, where the dateless item has dated items on both sides, just next to it"""
     ### Prepare
     mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest1]
     expectedDateFromLeft = "2018-12-12T18:41:16+00:00"
@@ -285,8 +294,8 @@ exifTagsForTest2 = [
 ]
 
 
-# Test two has a dateless item with dated items on both sides of the list, but with more dateless items in between
 def test_inferDateFromNeighboursTest2():
+    """Has a dateless item with dated items on both sides of the list, but with more dateless items in between"""
     ### Prepare
     mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest2]
     expectedDateFromLeft = "2018-12-12T18:42:16+00:00"
@@ -312,8 +321,8 @@ exifTagsForTest3 = [
 ]
 
 
-# Test two has a dateless item with dated items on both sides of the list, but with more dateless items in between
 def test_inferDateFromNeighboursTest3():
+    """Test a list where one of the ends (left) has no items with a valid date"""
     ### Prepare
     mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest3]
     expectedDateFromLeft = None
@@ -354,8 +363,8 @@ exifTagsForTest4Right = [
 ]
 
 
-# These lists have only dates on one side, to make sure we don't overflow the search or somehting silly
 def test_inferDateFromNeighboursTest4():
+    """These lists have only dates on one side, to make sure we don't overflow the search or somehting silly"""
     ### Prepare
     mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest4Left]
     expectedDateFromLeft = None
