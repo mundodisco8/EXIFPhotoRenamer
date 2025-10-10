@@ -106,6 +106,62 @@ def test_getSources_Olympus():
     assert expectedSource == source
 
 
+# A Google file just returns the model, too
+def test_getSources_Nikon():
+    ### Prepare
+    mediaFile = MediaFile(
+        Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "NIKON CORPORATION", "IFD0:Model": "NIKON ABC"}
+    )
+    expectedSource = "Nikon ABC"
+
+    ### Run
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+
+    ### Assert
+    assert expectedSource == source
+
+
+# A Google file just returns the model, too
+def test_getSources_Canon():
+    ### Prepare
+    mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "Canon", "IFD0:Model": "Canon ABC"})
+    expectedSource = "Canon ABC"
+
+    ### Run
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+
+    ### Assert
+    assert expectedSource == source
+
+
+# A Google file just returns the model, too
+def test_getSources_Fuji():
+    ### Prepare
+    mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "Fujifilm", "IFD0:Model": "ABC"})
+    expectedSource = "Fuji ABC"
+
+    ### Run
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+
+    ### Assert
+    assert expectedSource == source
+
+
+# A Google file just returns the model, too
+def test_getSources_OnePlus5T():
+    ### Prepare
+    mediaFile = MediaFile(
+        Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "OnePlus", "IFD0:Model": "OnePlus A5010"}
+    )
+    expectedSource = "OnePlus 5T"
+
+    ### Run
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+
+    ### Assert
+    assert expectedSource == source
+
+
 # Test quicktime files, that have their make/model in the "keys" group
 # A Quicktime file will probably come from Apple, but here, check make and model
 def test_getSources_Quicktime():

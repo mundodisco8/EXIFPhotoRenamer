@@ -38,7 +38,7 @@ from collections import Counter
 from json import JSONDecodeError, dumps, load
 from logging import getLogger
 from pathlib import Path
-from re import compile, match, search
+from re import compile, match, search, sub, IGNORECASE
 from subprocess import run
 from typing import Callable
 
@@ -725,16 +725,27 @@ class MediaFile:
                 return model
             elif make.lower() == "olympus imaging corp.":
                 # That's just too long
-                return "Olympus " + model
+                # Check that the model doesn't also contain the word "Olympus" on it, so we don't tag it twice, and if
+                # so, strip
+                model = sub("olympus", "", model, count=0, flags=IGNORECASE)
+                # And hopefully this will be "Olympus" + "CameraModel"
+                return "Olympus " + model.strip()
+            elif make.lower() == "nikon corporation":
+                # Another one that is just too long, and all caps
+                # Check that the model doesn't contain the word "Nikon" on it, so we don't tag it twice
+                model = sub("nikon", "", model, count=0, flags=IGNORECASE)
+                # And hopefully this will be "Nikon" + "CameraModel"
+                return "Nikon " + model.strip()
+            elif make.lower() == "canon":
+                # Canon adds "Canon" to the model too, so make + model would be "Canon Canon", strip
+                model = sub("canon", "", model, count=0, flags=IGNORECASE)
+                return make + " " + model.strip()
             elif make.lower() == "fujifilm":
                 # It's odd to see Fuji as Fujifilm, remove the "film" bit
                 return "Fuji " + model
             elif model.lower() == "oneplus a5010":
                 # OnePlus adds the Make to the model, and uses the model number instead of the common name
-                return make + "5T"
-            elif make.lower() == "canon":
-                # Canon adds "Canon" to the model too, so make + model is "Canon Canon"
-                return model
+                return make + " 5T"
             else:
                 return make + " " + model
 
