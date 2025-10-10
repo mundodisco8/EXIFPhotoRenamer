@@ -34,6 +34,7 @@ Functions:
     on it, and the metadata needed in the renaming process
 """
 
+import contextlib
 from collections import Counter
 from json import JSONDecodeError, dumps, load
 from logging import getLogger
@@ -621,10 +622,10 @@ class MediaFile:
                 # offset tags to check too. We'll give preference to the GPS as it's absolute (the offset tag requires
                 # having set the time and date correctly, obviously)
                 if (
-                    "GPS:GPSLatitudeRef" in exifToolData.keys()
-                    and "GPS:GPSLatitude" in exifToolData.keys()
-                    and "GPS:GPSLongitudeRef" in exifToolData.keys()
-                    and "GPS:GPSLongitude" in exifToolData.keys()
+                    "GPS:GPSLatitudeRef" in exifToolData
+                    and "GPS:GPSLatitude" in exifToolData
+                    and "GPS:GPSLongitudeRef" in exifToolData
+                    and "GPS:GPSLongitude" in exifToolData
                 ):
                     # Latitude and longitude follow the "GGG deg MM' SS.00"" format, we have a regexp to capture the
                     # numbers
@@ -658,7 +659,7 @@ class MediaFile:
                         date = date.to_tz(myTZ).to_fixed_offset()
                 else:
                     # No GPS location, try offsets
-                    if tag in OFFSET_DICT.keys() and OFFSET_DICT[tag] in exifToolData.keys():
+                    if tag in OFFSET_DICT and OFFSET_DICT[tag] in exifToolData:
                         offsetStr = exifToolData[OFFSET_DICT[tag]]
                         if len(offsetStr) == 6:
                             offsetSign = offsetStr[0]  # + or -
@@ -707,15 +708,15 @@ class MediaFile:
         """
         # Check 'IFD0' tags, the most frequently used, and if not present, 'Keys'
         make: str | None = None
-        if "IFD0:Make" in self.EXIFTags.keys():
+        if "IFD0:Make" in self.EXIFTags:
             make = self.EXIFTags["IFD0:Make"]
-        elif "Keys:Make" in self.EXIFTags.keys():
+        elif "Keys:Make" in self.EXIFTags:
             make = self.EXIFTags["Keys:Make"]
 
         model: str | None = None
-        if "IFD0:Model" in self.EXIFTags.keys():
+        if "IFD0:Model" in self.EXIFTags:
             model = self.EXIFTags["IFD0:Model"]
-        elif "Keys:Model" in self.EXIFTags.keys():
+        elif "Keys:Model" in self.EXIFTags:
             model = self.EXIFTags["Keys:Model"]
 
         if make and model:
@@ -761,9 +762,8 @@ class MediaFile:
             str | None: "Screenshot" if it's a iOS screenshot, None otherwise
         """
         for tag in USER_COMMENTS_TAGS_LIST:
-            if tag in self.EXIFTags.keys():
-                if self.EXIFTags[tag].lower() == "screenshot":
-                    return "iOS Screenshot"
+            if tag in self.EXIFTags and self.EXIFTags[tag].lower() == "screenshot":
+                return "iOS Screenshot"
         return None
 
     def _isInstragram(self) -> str | None:
@@ -774,7 +774,7 @@ class MediaFile:
         """
         # If there's any key with partial match with "Software", the list comprehension
         # will not be empty
-        softwareKeys = [key for key in self.EXIFTags.keys() if "software" in key.lower()]
+        softwareKeys = [key for key in self.EXIFTags if "software" in key.lower()]
         # Check for each key, while the flag is false, if the UserComment contains "facebook"
         # or "instagram"
         if softwareKeys != []:
@@ -795,7 +795,7 @@ class MediaFile:
         """
         # If there's any key with partial match with "Software", the list comprehension
         # will not be empty
-        softwareKeys = [key for key in self.EXIFTags.keys() if "software" in key.lower()]
+        softwareKeys = [key for key in self.EXIFTags if "software" in key.lower()]
         # Check for each key, while the flag is false, if the UserComment contains "facebook"
         # or "instagram"
         if softwareKeys != []:
@@ -815,7 +815,7 @@ class MediaFile:
         Returns:
             str | None: "PicsArt" if it comes from PicsArt, None otherwise
         """
-        if "IFD0:Software" in self.EXIFTags.keys() and self.EXIFTags["IFD0:Software"] == "PicsArt":
+        if "IFD0:Software" in self.EXIFTags and self.EXIFTags["IFD0:Software"] == "PicsArt":
             return "PicsArt"
 
         return None
@@ -1011,9 +1011,7 @@ def isTagATimeTag(tag: str) -> bool:
             # One Corner Case is that System File tags ("System:FileModifyDate", "System:FileAccessDate",
             # "System:FileCreateDate") are not in the list (as they might not be treated as EXIF tags)
             # Same for our "Inferred" dates
-            if tagGroup == "System":
-                return True
-            elif tagGroup == "Inferred":
+            if tagGroup == "System" or tagGroup == "Inferred":
                 return True
         else:
             # The tag might have been passed without a group, let's check it nevertheless
@@ -1049,24 +1047,20 @@ def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: list[MediaFile]) 
     # has a date. We get a list of items with date using filter(), plus a lambda, and next(). And then we use
     # list.index() to get the index of that number. If no item is found or the list is empty, we
     # Boom! (almost a) One-liner!
-    try:
+    with contextlib.suppress(StopIteration):
         datedObjectIdxRight = mediaFileList.index(
             next(filter(lambda instance: instance.dateTime is not None, mediaFileList[datelessMFIdx:]))
         )
-    except StopIteration:
-        # The search list was an empty list (dateless item was last item of the list), or no more dated items were found
-        # Leave datedObjectIdxRight as None
-        pass
+    # On exception, the search list was an empty list (dateless item was last item of the list), or no more dated items
+    # were found. Leave datedObjectIdxRight as None
 
     # For the  left side, we reverse the search sublist
-    try:
+    with contextlib.suppress(StopIteration):
         datedObjectIdxLeft = mediaFileList.index(
             next(filter(lambda instance: instance.dateTime is not None, reversed(mediaFileList[:datelessMFIdx])))
         )
-    except StopIteration:
-        # The search list was an empty list (dateless item was last item of the list), or no more dated items were found
-        # Leave datedObjectIdxRight as None
-        pass
+    # On exception, the search list was an empty list (dateless item was last item of the list), or no more dated items
+    # were found. Leave datedObjectIdxLeft as None
 
     # At this point, datedObjectIdxLR are not None. They are -1 if no dated item was found on that side, or >=0 if a
     # dated item was found

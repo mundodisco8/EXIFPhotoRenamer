@@ -335,7 +335,7 @@ class TagListModel(QAbstractListModel):
         super().__init__()
         self.tags: list[str] = []
         if mediaFileList:
-            self.tags = sorted({tag for mf in mediaFileList for tag in mf.EXIFTags.keys()})
+            self.tags = sorted({tag for mf in mediaFileList for tag in mf.EXIFTags})
 
     def rowCount(self, parent: QModelIndex | QPersistentModelIndex | None = None) -> int:
         """Returns the number of data rows
@@ -388,7 +388,7 @@ class TagListModel(QAbstractListModel):
         Args:
             newMediaFileList (list[MediaFile]): new MediaFile to use
         """
-        self.tags = sorted({tag for mf in newMediaFileList for tag in mf.EXIFTags.keys()})
+        self.tags = sorted({tag for mf in newMediaFileList for tag in mf.EXIFTags})
         self.layoutChanged.emit()
 
 

@@ -471,7 +471,7 @@ class Window(QWidget, Ui_MainWindow):
             # Clear the selection as it might be out of bounds in the new list
             self.datesTableView.clearSelection()
             # And finally, if a date has been selected already, show it
-            if str(instance.fileName) in self.selectedDates.keys():
+            if str(instance.fileName) in self.selectedDates:
                 self.dateChosenTxt.setText(self.selectedDates[str(instance.fileName)])
 
     @Slot()

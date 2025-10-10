@@ -337,10 +337,7 @@ def test_getSidecar_sidecarWithSameName():
     monkeypatch = MonkeyPatch()
 
     def mocked_is_file(self: Path):
-        if self.name == "sidecarExists.aae":
-            return True
-        else:
-            return False
+        return self.name == "sidecarExists.aae"
 
     monkeypatch.setattr(Path, "is_file", mocked_is_file)
 
@@ -367,10 +364,7 @@ def test_getSidecar_sidecarWithOSuffix():
     monkeypatch = MonkeyPatch()
 
     def mocked_is_file(self: Path):
-        if self.name == "sidecarExistsO.aae":
-            return True
-        else:
-            return False
+        return self.name == "sidecarExistsO.aae"
 
     monkeypatch.setattr(Path, "is_file", mocked_is_file)
 

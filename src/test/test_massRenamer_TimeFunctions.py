@@ -35,7 +35,7 @@ def test_findCreationTime_hasDateTimeOriginalWithOffset():
     ### Assert
     assert expectedDateTimeStr == date
     # Check that DateTimeOriginal has precedence over CreateDAte
-    assert "2025-01-02T11:00:00+01:00" != date
+    assert date != "2025-01-02T11:00:00+01:00"
 
 
 PNGCreationDateDict: dict[str, str] = {
