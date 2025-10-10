@@ -1,3 +1,8 @@
+"""Model Definitions
+
+Still not sure what this model/view thing is but here are some models for you
+"""
+
 from enum import StrEnum
 
 from PySide6.QtCore import QAbstractListModel, QAbstractTableModel, QModelIndex, QPersistentModelIndex, Qt
@@ -17,18 +22,23 @@ class SunnyBeach(StrEnum):
 
 
 class toRenameModel(QAbstractTableModel):
-    """A model to show renameable files and their proposed new names
+    """A model to show renameable files and their proposed new names together
 
-    Args:
-        QAbstractTableModel (_type_): ???
+    Stores a list of tuples (str, str|none) with the format
+        (currentFilename, proposedNewName)
     """
 
     def __init__(self, mediaFileList: list[MediaFile] | None = None) -> None:
-        """Inits the class
+        """Creates a list of current filenames and their proposed new names from a list of MediaFile
+
+        Only MediaFiles that have a proposed new name are shown, and only for those that have a different proposed new
+        name than their current name.
+        The list is internally stored in toRenameList.
+        If no list is passed, "returns" an empty list.
 
         Args:
-            datelessItemsList (list[tuple[str,str]] | None, optional): A list of files that can be renamed and their
-            proposed new name.
+            mediaFileList (list[MediaFile] | None, optional): A list of MediaFile that can be renamed and their proposed
+            new names.
             Defaults to None.
         """
         self.columns = ["Current Filename", "Proposed New Name"]
@@ -41,23 +51,70 @@ class toRenameModel(QAbstractTableModel):
                     self.toRenameList.append((str(instance.fileName), str(instance.newName)))
 
     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+        """Implementation of the data virtual method.
+
+        Args:
+            index (QModelIndex | QPersistentModelIndex): coordinates of the item to return
+            role (int, optional): model role. Defaults to Qt.ItemDataRole.DisplayRole.
+
+        Returns:
+            str | None: if the selected model is DisplayRole, returns the data in the position (column, row),
+            None otherwise
+        """
         if role == Qt.ItemDataRole.DisplayRole:
             return self.toRenameList[index.row()][index.column()]
         # TODO: If has sidecar, paint background?
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole):
+        """Sets the column's names
+
+        Args:
+            section (int): column number
+            orientation (Qt.Orientation): the object's orientation, we are only handling Horizontal
+            role (int, optional):the model's role. Defaults to Qt.ItemDataRole.DisplayRole.
+
+        Returns:
+            str: returns the column's name.
+        """
         # for setting columns name
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
             return f"{self.columns[section]}"
 
-    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex | None = None) -> int:
+        """Returns the number of data rows
+
+        Args:
+            parent (QModelIndex | QPersistentModelIndex, optional): unused argument required by Qt model interface.
+
+        Returns:
+            int: returns the number of rows of the model
+        """
+        if parent is None:
+            parent = QModelIndex()
         return len(self.toRenameList)
 
-    def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+    def columnCount(self, parent: QModelIndex | QPersistentModelIndex | None = None) -> int:
+        """Returns the number of data columns
+
+        Args:
+            parent (QModelIndex | QPersistentModelIndex, optional): unused argument required by Qt model interface.
+
+        Returns:
+            int: returns the number of colums of the model
+        """
+        if parent is None:
+            parent = QModelIndex()
         return 2
 
     def replaceListOfFiles(self, mediaFileList: list[MediaFile]) -> None:
+        """Update the model's data
+
+        Updates the model's data from a list of MediaFile
+
+        Args:
+            mediaFileList (list[MediaFile]): new MediaFile list to use
+        """
         self.toRenameList = []
         for instance in mediaFileList:
             if instance.newName and instance.fileName != instance.newName:
@@ -65,6 +122,14 @@ class toRenameModel(QAbstractTableModel):
         self.layoutChanged.emit()
 
     def returnColumn(self, column: int) -> list[str]:
+        """Returns all the data for a single column as a list of string
+
+        Args:
+            column (int): the column to return
+
+        Returns:
+            list[str]: a list of str with all the data for a single column
+        """
         retList: list[str] = []
         if column > self.columnCount():
             return []
@@ -76,15 +141,20 @@ class toRenameModel(QAbstractTableModel):
 class showDatelessModel(QAbstractTableModel):
     """A model for the dateless items table
 
-    Args:
-        QAbstractTableModel (_type_): ???
+    Stores a list of items that don't have currently a poposed date, and any proposed new dates for them. It stores it
+    in a list of tuple (str, str) with the format
+        (fileName, proposedNewDate)
+
+    If no date has been proposed yet, the proposed date column is empty.
     """
 
     def __init__(self, mediaFileList: list[MediaFile] | None = None) -> None:
-        """Inits the class
+        """Inits the class from a list of MediaFile.
+
+        Checks a list of MediaFile and stores the filenames of those that don't have a date yet.
 
         Args:
-            datelessItemsList (list[tuple[str,str]] | None, optional): A list of files that don't have a clear date.
+            mediaFileList: list[MediaFile] | None, optional): A list of MediaFile
             Defaults to None.
         """
         self.columns = ["Filename", "Proposed New Date"]
@@ -96,22 +166,68 @@ class showDatelessModel(QAbstractTableModel):
                     self.datelessItemsList.append((str(instance.fileName), ""))
 
     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+        """Implementation of the data virtual method.
+
+        Args:
+            index (QModelIndex | QPersistentModelIndex): coordinates of the item to return
+            role (int, optional): model role. Defaults to Qt.ItemDataRole.DisplayRole.
+
+        Returns:
+            str | None: if the selected model is DisplayRole, returns the data in the position (column, row),
+            None otherwise
+        """
         if role == Qt.ItemDataRole.DisplayRole:
             return self.datelessItemsList[index.row()][index.column()]
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole):
-        # for setting columns name
+        """Sets the column's names
+
+        Args:
+            section (int): column number
+            orientation (Qt.Orientation): the object's orientation, we are only handling Horizontal
+            role (int, optional):the model's role. Defaults to Qt.ItemDataRole.DisplayRole.
+
+        Returns:
+            str: returns the column's name.
+        """
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
             return f"{self.columns[section]}"
 
-    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex | None = None) -> int:
+        """Returns the number of data rows
+
+        Args:
+            parent (QModelIndex | QPersistentModelIndex, optional): not used. Defaults to QModelIndex().
+
+        Returns:
+            int: returns the number of rows of the model
+        """
+        if parent is None:
+            parent = QModelIndex()
         return len(self.datelessItemsList)
 
-    def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+    def columnCount(self, parent: QModelIndex | QPersistentModelIndex | None = None) -> int:
+        """Returns the number of data columns
+
+        Args:
+            parent (QModelIndex | QPersistentModelIndex, optional): not used. Defaults to QModelIndex().
+
+        Returns:
+            int: returns the number of colums of the model
+        """
+        if parent is None:
+            parent = QModelIndex()
         return 2
 
     def replaceListOfFiles(self, mediaFileList: list[MediaFile]) -> None:
+        """Update the model's data
+
+        Updates the model's data from a list of MediaFile
+
+        Args:
+            mediaFileList (list[MediaFile]): new MediaFile list to use
+        """
         self.datelessItemsList = []
         for instance in mediaFileList:
             if not instance.dateTime:
@@ -140,6 +256,18 @@ class fixDateModel(QAbstractTableModel):
     def data(
         self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole
     ) -> str | QColor | QFont | None:
+        """Implementation of the data virtual method.
+
+        Shows data but also colorizes the background based on the type of data contained.
+
+        Args:
+            index (QModelIndex | QPersistentModelIndex): coordinates of the item to return
+            role (int, optional): model role. Defaults to Qt.ItemDataRole.DisplayRole.
+
+        Returns:
+            str | None: if the selected model is DisplayRole, returns the data in the position (column, row),
+            None otherwise
+        """
         if role == Qt.ItemDataRole.DisplayRole:
             return self.dateTagList[index.row()][index.column()]
         elif role == Qt.ItemDataRole.BackgroundRole:
@@ -157,13 +285,40 @@ class fixDateModel(QAbstractTableModel):
             return myFont
         return None
 
-    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex | None = None) -> int:
+        """Returns the number of data rows
+
+        Args:
+            parent (QModelIndex | QPersistentModelIndex, optional): not used. Defaults to QModelIndex().
+
+        Returns:
+            int: returns the number of rows of the model
+        """
+        if parent is None:
+            parent = QModelIndex()
         return len(self.dateTagList)
 
-    def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+    def columnCount(self, parent: QModelIndex | QPersistentModelIndex | None = None) -> int:
+        """Returns the number of data columns
+
+        Args:
+            parent (QModelIndex | QPersistentModelIndex, optional): not used. Defaults to QModelIndex().
+
+        Returns:
+            int: returns the number of colums of the model
+        """
+        if parent is None:
+            parent = QModelIndex()
         return 2
 
     def replaceListOfTags(self, mediaFile: MediaFile) -> None:
+        """Update the model's data
+
+        Updates the model's data from the dates contained on the selected MediaFile
+
+        Args:
+            mediaFile (MediaFile): new MediaFile to use
+        """
         self.dateTagList = []
         if mediaFile.EXIFTags:  # if the dict has tags
             # Show the date tags for this file
@@ -174,18 +329,42 @@ class fixDateModel(QAbstractTableModel):
 
 
 class TagListModel(QAbstractListModel):
+    """A model containint all the EXIF Tag categories on a list of MediaFile"""
+
     def __init__(self, mediaFileList: list[MediaFile] | None):
         super().__init__()
         self.tags: list[str] = []
         if mediaFileList:
             self.tags = sorted({tag for mf in mediaFileList for tag in mf.EXIFTags.keys()})
 
-    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex | None = None) -> int:
+        """Returns the number of data rows
+
+        Args:
+            parent (QModelIndex | QPersistentModelIndex, optional): not used. Defaults to QModelIndex().
+
+        Returns:
+            int: returns the number of rows of the model
+        """
+        if parent is None:
+            parent = QModelIndex()
         return len(self.tags)
 
     def data(
         self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole
     ) -> str | QColor | None:
+        """Implementation of the data virtual method.
+
+        Shows data but also colorizes the background based on the type of data contained.
+
+        Args:
+            index (QModelIndex | QPersistentModelIndex): coordinates of the item to return
+            role (int, optional): model role. Defaults to Qt.ItemDataRole.DisplayRole.
+
+        Returns:
+            str | None: if the selected model is DisplayRole, returns the data in the position (column, row),
+            None otherwise
+        """
         if role == Qt.ItemDataRole.DisplayRole and index.isValid():
             return self.tags[index.row()]
         elif role == Qt.ItemDataRole.BackgroundRole:
@@ -202,45 +381,111 @@ class TagListModel(QAbstractListModel):
         return None
 
     def replaceListOfTags(self, newMediaFileList: list[MediaFile]) -> None:
+        """Update the model's data
+
+        Updates the model's data from the EXIF Tags contained on the  list of MediaFile
+
+        Args:
+            newMediaFileList (list[MediaFile]): new MediaFile to use
+        """
         self.tags = sorted({tag for mf in newMediaFileList for tag in mf.EXIFTags.keys()})
         self.layoutChanged.emit()
 
 
 class ValueListModel(QAbstractListModel):
+    """A model containint all the values of a particular EXIF Tag on a list of MediaFile"""
+
     def __init__(self, mediaFileList: list[MediaFile] | None, tag: str):
         super().__init__()
         self.values: list[str] = []
         if mediaFileList:
             self.values = sorted({mf.EXIFTags.get(tag) for mf in mediaFileList if tag in mf.EXIFTags})  # pyright: ignore[reportArgumentType]
 
-    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex | None = None) -> int:
+        """Returns the number of data rows
+
+        Args:
+            parent (QModelIndex | QPersistentModelIndex, optional): not used. Defaults to QModelIndex().
+
+        Returns:
+            int: returns the number of rows of the model
+        """
+        if parent is None:
+            parent = QModelIndex()
         return len(self.values)
 
     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+        """Implementation of the data virtual method.
+
+        Args:
+            index (QModelIndex | QPersistentModelIndex): coordinates of the item to return
+            role (int, optional): model role. Defaults to Qt.ItemDataRole.DisplayRole.
+
+        Returns:
+            str | None: if the selected model is DisplayRole, returns the data in the position (column, row),
+            None otherwise
+        """
         if role == Qt.ItemDataRole.DisplayRole and index.isValid():
             return self.values[index.row()]
         return None
 
     def replaceListOfValues(self, newMediaFileList: list[MediaFile], newTag: str) -> None:
+        """Update the model's data
+
+        Args:
+            newMediaFileList (list[MediaFile]): list of MediaFile to use
+            newTag (str): the tag selected
+        """
         self.values = sorted({str(mf.EXIFTags.get(newTag)) for mf in newMediaFileList if newTag in mf.EXIFTags})  # pyright: ignore[reportArgumentType]
         self.layoutChanged.emit()
 
 
 class FileListModel(QAbstractListModel):
+    """A model to show all the files that contain a certain value for a certain ExifTag"""
+
     def __init__(self, mediaFileList: list[MediaFile] | None, tag: str, value: str):
         super().__init__()
         self.files: list[str] = []
         if mediaFileList:
             self.files = [str(mf.fileName) for mf in mediaFileList if mf.EXIFTags.get(tag) == value]
 
-    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex | None = None) -> int:
+        """Returns the number of data rows
+
+        Args:
+            parent (QModelIndex | QPersistentModelIndex, optional): not used. Defaults to QModelIndex().
+
+        Returns:
+            int: returns the number of rows of the model
+        """
+        if parent is None:
+            parent = QModelIndex()
         return len(self.files)
 
     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | None:
+        """Implementation of the data virtual method.
+
+        Args:
+            index (QModelIndex | QPersistentModelIndex): coordinates of the item to return
+            role (int, optional): model role. Defaults to Qt.ItemDataRole.DisplayRole.
+
+        Returns:
+            str | None: if the selected model is DisplayRole, returns the data in the position (column, row),
+            None otherwise
+        """
         if role == Qt.ItemDataRole.DisplayRole and index.isValid():
             return self.files[index.row()]
         return None
 
     def replaceListOfFiles(self, newMediaFileList: list[MediaFile], newTag: str, newValue: str) -> None:
+        """Update the model's data
+
+        Updates the model's data from a list of MediaFile, the ExifTag selected and the value for that tag
+
+        Args:
+            newMediaFileList (list[MediaFile]): list of mediaFile to get the filenames
+            newTag (str): tag to use
+            newValue (str): value for said tag
+        """
         self.files = [str(mf.fileName) for mf in newMediaFileList if mf.EXIFTags.get(newTag) == newValue]
         self.layoutChanged.emit()
