@@ -1107,7 +1107,7 @@ def findNewNames(mediaFileList: list[MediaFile], parentFolder: Path) -> None:
         parentFolder (Path): the parent folder to use as a base for the renaming process.
     """
     # Create a list of available sources
-    availableSources = set([instance.source for instance in mediaFileList])
+    availableSources = {instance.source for instance in mediaFileList}
 
     for source in availableSources:
         # Date Histogram:
