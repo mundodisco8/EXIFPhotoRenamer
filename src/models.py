@@ -271,18 +271,19 @@ class fixDateModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             return self.dateTagList[index.row()][index.column()]
         elif role == Qt.ItemDataRole.BackgroundRole:
+            bgColour: QColor | None = None
             # Get some background colours to distinghuis tags?
             if self.dateTagList[index.row()][0].startswith("System"):
-                return QColor(SunnyBeach.darkOrange)
+                bgColour = QColor(SunnyBeach.darkOrange)
             if self.dateTagList[index.row()][0].startswith("Exif"):
-                return QColor(SunnyBeach.orange)
+                bgColour = QColor(SunnyBeach.orange)
             if self.dateTagList[index.row()][0].startswith("Inferred"):
-                return QColor(SunnyBeach.yellow)
+                bgColour = QColor(SunnyBeach.yellow)
             else:
-                return QColor(SunnyBeach.teal)
+                bgColour = QColor(SunnyBeach.teal)
+            return bgColour
         elif role == Qt.ItemDataRole.FontRole and index.column() == 1:
-            myFont = QFont("Monospace")
-            return myFont
+            return QFont("Monospace")
         return None
 
     def rowCount(self, parent: QModelIndex | QPersistentModelIndex | None = None) -> int:
