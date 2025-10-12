@@ -56,15 +56,18 @@ TAGS_TO_EXTRACT: list[str] = ["-time:all", "-UserComment", "-Make", "-Model", "-
 # -j output json
 # -r recursive folder search
 # -d "%Y-%m-%dT%H:%M:%S%:z" output dates in YYYY-MM-DDTHH:MM:SS+/-Offset
-EXTRACT_ALL_TAGS_ARGS: list[str] = TAGS_TO_EXTRACT + [
-    "-G1",
-    "-a",
-    "-s",
-    "-j",
-    "-r",
-    "-d",
-    "%Y-%m-%dT%H:%M:%S%:z",
-    # The only thing missing here is the destination path
+EXTRACT_ALL_TAGS_ARGS: list[str] = [
+    *TAGS_TO_EXTRACT,
+    *[
+        "-G1",
+        "-a",
+        "-s",
+        "-j",
+        "-r",
+        "-d",
+        "%Y-%m-%dT%H:%M:%S%:z",
+        # The only thing missing here is the destination path
+    ],
 ]
 
 
@@ -220,7 +223,7 @@ class Window(QWidget, Ui_MainWindow):
         self._exifToolProcess.finished.connect(self.handleFinishedTagParser)
 
         # (A bit of a convoluted way to add the dir to a list of args while still keeping the list unmodified)
-        self._exifToolProcess.start("exiftool", EXTRACT_ALL_TAGS_ARGS + [self._selDir])
+        self._exifToolProcess.start("exiftool", [*EXTRACT_ALL_TAGS_ARGS, self._selDir])
         # From here, we listen to the output and handle it in `handleStdOut()` and check the process state and handle it
         # in `handleState()`
 
@@ -571,9 +574,9 @@ class Window(QWidget, Ui_MainWindow):
                 # These are the arguments to save the date
 
                 saveNewDateArgs = self.saveNewDateTags(Path(fileName).suffix, newDate)
-                self._cmdDeque.append((CMDTYPE.SAVE_DATE, ["exiftool"] + saveNewDateArgs + [fileName]))
+                self._cmdDeque.append((CMDTYPE.SAVE_DATE, ["exiftool", *saveNewDateArgs, fileName]))
                 # As we fix the dates, we can build a list of rescan commands to run. See step 2 below
-                self._cmdDeque.append((CMDTYPE.RESCAN, ["exiftool"] + EXTRACT_ALL_TAGS_ARGS + [fileName]))
+                self._cmdDeque.append((CMDTYPE.RESCAN, ["exiftool", *EXTRACT_ALL_TAGS_ARGS, fileName]))
 
         # First, we store new dates on those dateless items were a new date has been selected.
         # Setup the progress bar

@@ -510,7 +510,7 @@ class MediaFile:
 
     # Use slots, instead of a dict, for the attributes. This makes the attribs static, but require less memory per
     # object and has faster access
-    __slots__ = "fileName", "dateTime", "source", "sidecar", "EXIFTags", "newName"
+    __slots__ = "EXIFTags", "dateTime", "fileName", "newName", "sidecar", "source"
 
     # NOTE: Tested
     def __init__(self, fileName: Path, dateTime: str | None, EXIFTags: dict[str, str] | None = None):
