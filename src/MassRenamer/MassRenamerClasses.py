@@ -36,12 +36,12 @@ Functions:
 
 import contextlib
 from collections import Counter
+from collections.abc import Callable
 from json import JSONDecodeError, dumps, load
 from logging import getLogger
 from pathlib import Path
 from re import IGNORECASE, compile, match, search, sub
 from subprocess import run
-from typing import Callable
 
 from natsort import os_sorted
 from tzfpy import get_tz
