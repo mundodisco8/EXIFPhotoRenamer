@@ -52,7 +52,6 @@ jobs:
       - name: Lint with Ruff
         # Lints the project, using the rules in ruff.toml
         uses: astral-sh/ruff-action@v3
-        continue-on-error: true # allow lint errors, for now
 
       - name: Setup .NET Core # Required to execute ReportGenerator
         uses: actions/setup-dotnet@v4

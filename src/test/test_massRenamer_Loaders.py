@@ -16,16 +16,11 @@ from src.MassRenamer.MassRenamerClasses import (
 
 """
 generateSortedMediaFileList()
-
-- Can generate a list from a file with data for a single instance
-- Can generate a list from a file with data for a bunch of instances
-- Can generate a list from a file with data for a bunch of instances that are not ordered
- and returns an ordered list
 """
 
 
-# ExifTags_TestFile_1.json
-tagsForOneInstance = [
+# Tags for one single file
+TAGS_FOR_ONE_INSTANCE = [
     {
         "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
         "PNG:CreateDate": "2025-09-03T17:29:21+01:00",
@@ -34,13 +29,13 @@ tagsForOneInstance = [
 ]
 
 
-# Test file to test generateSortedMediaFileList(). Contains the tags of a single MediaFile object
 def test_generateSortedMediaFileList_OneObject():
+    """Test that we can generate a sorted MediaFile list with one object"""
     ### Prepare
 
     ### Run Test
 
-    mediaFileList = generateSortedMediaFileList(tagsForOneInstance)
+    mediaFileList = generateSortedMediaFileList(TAGS_FOR_ONE_INSTANCE)
 
     ### Assert
     assert mediaFileList[0].fileName == Path("C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png")
@@ -54,11 +49,9 @@ def test_generateSortedMediaFileList_OneObject():
     }
 
 
-# ExifTags_TestFile_2.json
-# Test file to test generateSortedMediaFileList(). Contains the tags of a a bunch of MediaFile objects, and
-# they are already sorted
+# Contains the tags of a a bunch of MediaFile objects, and they are already sorted
 
-tagsManyAndOrdered = [
+TAGS_MANY_AND_ORDERED = [
     {
         "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
         "PNG:CreateDate": "2025-09-03T17:29:21+01:00",
@@ -91,10 +84,11 @@ tagsManyAndOrdered = [
 
 
 def test_generateSortedMediaFileList_ManyOrderedObject():
+    """Test that we can generate a sorted MediaFile list with multiple objects that are already ordered"""
     ### Prepare
 
     ### Run code
-    mediaFileList = generateSortedMediaFileList(tagsManyAndOrdered)
+    mediaFileList = generateSortedMediaFileList(TAGS_MANY_AND_ORDERED)
 
     ### Assert
     # No need to check all instances, just that they are in the right order
@@ -119,11 +113,9 @@ def test_generateSortedMediaFileList_ManyOrderedObject():
     )
 
 
-# ExifTags_TestFile_3.json
-# Test file to test generateSortedMediaFileList(). Contains the tags of a a bunch of MediaFile objects, but
-# they are not sorted
+# Contains the tags of a a bunch of MediaFile objects, but they are not sorted
 
-tagsManyAndNotOrdered = [
+TAGS_MANY_AND_NOT_ORDERED = [
     {
         "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/141.png",
         "PNG:CreateDate": "2025-09-03T17:31:04+01:00",
@@ -156,10 +148,11 @@ tagsManyAndNotOrdered = [
 
 
 def test_generateSortedMediaFileList_ManyNotOrderedObject():
+    """Test that we can generate a sorted MediaFile list with multiple objects that are NOT ordered"""
     ### Prepare
 
     ### Run code
-    mediaFileList = generateSortedMediaFileList(tagsManyAndNotOrdered)
+    mediaFileList = generateSortedMediaFileList(TAGS_MANY_AND_NOT_ORDERED)
 
     ### Assert
     # No need to check all instances, just that they are in the right order
@@ -184,7 +177,7 @@ def test_generateSortedMediaFileList_ManyNotOrderedObject():
     )
 
 
-tagsIgnoreExtension = [
+TAGS_IGNORE_EXTENSION = [
     {
         "SourceFile": "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov",
         "QuickTime:CreateDate": "2018-02-25T09:46:20",
@@ -202,7 +195,8 @@ tagsIgnoreExtension = [
 
 
 def test_generateSortedMediaFileList_filesWithIgnoredExtensions():
-    mediaFileList = generateSortedMediaFileList(tagsIgnoreExtension)
+    """Check that files with extensions in the ignore types list are excluded"""
+    mediaFileList = generateSortedMediaFileList(TAGS_IGNORE_EXTENSION)
     print(mediaFileList)
     assert len(mediaFileList) == 1
 
@@ -215,7 +209,8 @@ loadExifToolTagsFromFile
 - File doesn't exist, throws exception
 """
 
-testFileData: str = """[
+# Fake contents for the file used in the test below
+TEST_FILE_DATA: str = """[
 {
     "SourceFile": "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov",
     "QuickTime:CreateDate": "2018:02:28 02:25:37",
@@ -235,9 +230,10 @@ testFileData: str = """[
 
 
 def test_loadExifToolTagsFromFile_success(mocker: MockerFixture):
+    """Tests that we can create multiple MediaFile items from a JSON with EXIF Tags"""
     ### Prepare test
     # Test file is a string with tags to create two MediaFile objects
-    mockFileOpen = mocker.mock_open(read_data=testFileData)  # pyright: ignore[reportUnknownMemberType]
+    mockFileOpen = mocker.mock_open(read_data=TEST_FILE_DATA)  # pyright: ignore[reportUnknownMemberType]
     mocker.patch("builtins.open", mockFileOpen)
 
     ### Run code
@@ -249,13 +245,15 @@ def test_loadExifToolTagsFromFile_success(mocker: MockerFixture):
     assert retVal[1]["QuickTime:Model"] == "iPhone 8"
 
 
-testFileDataNoJson: str = """some Text"""
+# Fake contents for the file used in the test below
+TEST_FILE_DATA_NO_JSON: str = """some Text"""
 
 
 def test_loadExifToolTagsFromFile_FileIsNotJSON(mocker: MockerFixture):
+    """Tests we raise and exception if the opened file doesn't contain JSON data"""
     ### Prepare test
     # Test file is a string with tags to create two MediaFile objects
-    mockFileOpen = mocker.mock_open(read_data=testFileDataNoJson)  # pyright: ignore[reportUnknownMemberType]
+    mockFileOpen = mocker.mock_open(read_data=TEST_FILE_DATA_NO_JSON)  # pyright: ignore[reportUnknownMemberType]
     mocker.patch("builtins.open", mockFileOpen)
 
     with raises(JSONDecodeError):
@@ -263,6 +261,7 @@ def test_loadExifToolTagsFromFile_FileIsNotJSON(mocker: MockerFixture):
 
 
 def test_loadExifToolTagsFromFile_FileDoesntExist():
+    """Tests we raise an exception if the file doesn't exist"""
     with raises(FileNotFoundError):
         loadExifToolTagsFromFile(Path("FileThatDoesn'tExists.json"))
 
@@ -272,7 +271,8 @@ def test_loadExifToolTagsFromFile_FileDoesntExist():
 - Check that what we write makes jsonsense
 """
 
-mediaFileList = [
+# The MediaFile list to store in the test below
+TEST_MEDIA_FILE_LIST = [
     MediaFile(
         Path("A.jpg"),
         None,
@@ -295,6 +295,7 @@ mediaFileList = [
 
 
 def test_storeMediaFileList_success(mocker: MockerFixture):
+    """Store a list of valid MediaFile items in a file as JSON"""
     ### Prepare test
     mockOpen = mocker.mock_open()  # pyright: ignore[reportUnknownMemberType]
     mocker.patch("builtins.open", mockOpen)
@@ -306,7 +307,7 @@ def test_storeMediaFileList_success(mocker: MockerFixture):
     ]
 
     ### Run
-    storeMediaFileListTags(Path("RandomFile.txt"), mediaFileList)
+    storeMediaFileListTags(Path("RandomFile.txt"), TEST_MEDIA_FILE_LIST)
 
     ### Assert
     mockOpen.assert_called_with(Path("RandomFile.txt"), "w")
@@ -323,16 +324,21 @@ def test_storeMediaFileList_success(mocker: MockerFixture):
 
 
 class MockWriter:
-    """Collect all written data."""
+    """Collect all written data.
+
+    A mock Writter used in the tests to spy what text was written to a file.
+    """
 
     def __init__(self):
         self.contents: str = ""
 
     def write(self, data: str) -> None:
+        """Virtual method implementation, all the data passed to write is stored in contents to be checked later"""
         self.contents += data
 
 
 def test_storeMediaFileList_successCheckOutput(mocker: MockerFixture):
+    """Test that a MediaFile list was converted to a JSON data and stored in a file"""
     ### Prepare test
     mockOpen = mocker.mock_open()  # pyright: ignore[reportUnknownMemberType]
     writer = MockWriter()
@@ -340,7 +346,7 @@ def test_storeMediaFileList_successCheckOutput(mocker: MockerFixture):
     mocker.patch("builtins.open", mockOpen)
 
     ### Run
-    storeMediaFileListTags(Path("RandomFile.txt"), mediaFileList)
+    storeMediaFileListTags(Path("RandomFile.txt"), TEST_MEDIA_FILE_LIST)
 
     ### Assert
     # get stuff written to the file, is stored in writer.contents

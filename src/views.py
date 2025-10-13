@@ -23,7 +23,7 @@ from ui.mediaFileViewer import Ui_MediaFileViewer
 from ui.renameWarningDialog import Ui_renameWarningDialog
 
 # My own modules
-from customLogger import configConsoleHandler, emojiFormatter
+from customLogger import EmojiFormatter, configConsoleHandler
 from MassRenamer.MassRenamerClasses import (
     IMAGE_EXTENSIONS,
     VIDEO_EXTENSIONS,
@@ -37,11 +37,11 @@ from MassRenamer.MassRenamerClasses import (
 )
 from models import (
     FileListModel,
+    FixDateModel,
+    ShowDatelessModel,
     TagListModel,
+    ToRenameModel,
     ValueListModel,
-    fixDateModel,
-    showDatelessModel,
-    toRenameModel,
 )
 
 logger = getLogger(__name__)
@@ -56,15 +56,18 @@ TAGS_TO_EXTRACT: list[str] = ["-time:all", "-UserComment", "-Make", "-Model", "-
 # -j output json
 # -r recursive folder search
 # -d "%Y-%m-%dT%H:%M:%S%:z" output dates in YYYY-MM-DDTHH:MM:SS+/-Offset
-EXTRACT_ALL_TAGS_ARGS: list[str] = TAGS_TO_EXTRACT + [
-    "-G1",
-    "-a",
-    "-s",
-    "-j",
-    "-r",
-    "-d",
-    "%Y-%m-%dT%H:%M:%S%:z",
-    # The only thing missing here is the destination path
+EXTRACT_ALL_TAGS_ARGS: list[str] = [
+    *TAGS_TO_EXTRACT,
+    *[
+        "-G1",
+        "-a",
+        "-s",
+        "-j",
+        "-r",
+        "-d",
+        "%Y-%m-%dT%H:%M:%S%:z",
+        # The only thing missing here is the destination path
+    ],
 ]
 
 
@@ -107,7 +110,7 @@ class Window(QWidget, Ui_MainWindow):
         self.mediaFileViewer = MediaFileViewer(self)
         ## Rename files Tab
         # This list shows the files about to be renamed
-        self.toRenameModel = toRenameModel()
+        self.toRenameModel = ToRenameModel()
         self.toRenamePreviewTable.setModel(self.toRenameModel)
         self.toRenamePreviewTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.toRenamePreviewTable.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
@@ -125,7 +128,7 @@ class Window(QWidget, Ui_MainWindow):
         ## Fix Dates Tab
         # toFixDates Table: shows the filenames of the files that don't have dates, and the currently selected date for
         # that file, if one has already been chosen
-        self.showDatelessModel = showDatelessModel()
+        self.showDatelessModel = ShowDatelessModel()
         self.toFixDatesTableView.setModel(self.showDatelessModel)
         self.toFixDatesTableView.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.toFixDatesTableView.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
@@ -135,7 +138,7 @@ class Window(QWidget, Ui_MainWindow):
         # I have to override the key press event of the widget with my own keyPressEvent method
         self.toFixDatesTableView.keyPressEvent = self.selectDateWithHotkey
         # Create a model for the date fixer view, and assign it to the View widget
-        self.fixDateModel = fixDateModel()
+        self.fixDateModel = FixDateModel()
         self.datesTableView.setModel(self.fixDateModel)
         self.datesTableView.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.datesTableView.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
@@ -165,12 +168,12 @@ class Window(QWidget, Ui_MainWindow):
         self.updateProgressSignal.updateProgress.connect(self.progressBar.setValue)
 
         ### Non-UI Stuff
-        # Get root logger and set the emojiFormatter
+        # Get root logger and set the EmojiFormatter
         rootLogger = getLogger()
         rootLogger.setLevel(DEBUG)
         # Just for some specific situations, add a console logger, but only log warnings and errors (change to errors
         # if found to verbose)
-        configConsoleHandler(rootLogger, emojiFormatter())
+        configConsoleHandler(rootLogger, EmojiFormatter())
 
     def _setupUI(self):
         self.setupUi(self)  # pyright: ignore[reportUnknownMemberType]
@@ -220,7 +223,7 @@ class Window(QWidget, Ui_MainWindow):
         self._exifToolProcess.finished.connect(self.handleFinishedTagParser)
 
         # (A bit of a convoluted way to add the dir to a list of args while still keeping the list unmodified)
-        self._exifToolProcess.start("exiftool", EXTRACT_ALL_TAGS_ARGS + [self._selDir])
+        self._exifToolProcess.start("exiftool", [*EXTRACT_ALL_TAGS_ARGS, self._selDir])
         # From here, we listen to the output and handle it in `handleStdOut()` and check the process state and handle it
         # in `handleState()`
 
@@ -345,7 +348,7 @@ class Window(QWidget, Ui_MainWindow):
         clashList = [x.newName for x in mediaFilesToRename if x.newName and x.newName.is_file()]
         if clashList:
             # Show a Warning dialog
-            dlg = renameFilesWarningDialog(self)
+            dlg = RenameFilesWarningDialog(self)
             numberClashes = len(clashList)
             if numberClashes == 1:
                 dlg.messageTxt.setText("The proposed new names clash with one existing file")
@@ -471,7 +474,7 @@ class Window(QWidget, Ui_MainWindow):
             # Clear the selection as it might be out of bounds in the new list
             self.datesTableView.clearSelection()
             # And finally, if a date has been selected already, show it
-            if str(instance.fileName) in self.selectedDates.keys():
+            if str(instance.fileName) in self.selectedDates:
                 self.dateChosenTxt.setText(self.selectedDates[str(instance.fileName)])
 
     @Slot()
@@ -571,9 +574,9 @@ class Window(QWidget, Ui_MainWindow):
                 # These are the arguments to save the date
 
                 saveNewDateArgs = self.saveNewDateTags(Path(fileName).suffix, newDate)
-                self._cmdDeque.append((CMDTYPE.SAVE_DATE, ["exiftool"] + saveNewDateArgs + [fileName]))
+                self._cmdDeque.append((CMDTYPE.SAVE_DATE, ["exiftool", *saveNewDateArgs, fileName]))
                 # As we fix the dates, we can build a list of rescan commands to run. See step 2 below
-                self._cmdDeque.append((CMDTYPE.RESCAN, ["exiftool"] + EXTRACT_ALL_TAGS_ARGS + [fileName]))
+                self._cmdDeque.append((CMDTYPE.RESCAN, ["exiftool", *EXTRACT_ALL_TAGS_ARGS, fileName]))
 
         # First, we store new dates on those dateless items were a new date has been selected.
         # Setup the progress bar
@@ -731,7 +734,7 @@ class MediaFileViewer(QDialog, Ui_MediaFileViewer):
         self.setupUi(self)  # pyright: ignore[reportUnknownMemberType]
 
 
-class renameFilesWarningDialog(QDialog, Ui_renameWarningDialog):
+class RenameFilesWarningDialog(QDialog, Ui_renameWarningDialog):
     """A custom warning dialog shown when there's a risk of file overwrites during the rename process
 
     It displays a list of the files that are clashing

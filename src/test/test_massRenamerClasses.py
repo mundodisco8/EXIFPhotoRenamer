@@ -12,6 +12,7 @@ MediaFile.fromExifTags Class test:
 
 
 def test_MediaFile_Creation():
+    """Create a MediaFile"""
     exifData = {
         "SourceFile": "fakeFile.jpg",
         "IFD0:Make": "Apple",
@@ -28,6 +29,7 @@ def test_MediaFile_Creation():
 
 
 def test_MediaFile_repr():
+    """Test the __repr__ method returns something that can generate new instances"""
     exifData = {
         "SourceFile": "fakeFile.jpg",
         "IFD0:Make": "Apple",
@@ -35,7 +37,7 @@ def test_MediaFile_repr():
         "ExifIFD:CreateDate": "1234-12-12T11:22:33",
     }
     sourceInstance = MediaFile.fromExifTags(exifData)
-    testInstance = eval(sourceInstance.__repr__())
+    testInstance = eval(sourceInstance.__repr__())  # noqa: S307 it's a test not concerned about security implications
     assert isinstance(testInstance, type(sourceInstance))
     assert testInstance.fileName == Path("fakeFile.jpg")
     assert testInstance.dateTime == "1234-12-12T11:22:33+00:00"
@@ -52,6 +54,7 @@ Get Sources:
 
 # A file with maker and model
 def test_getSources_Success():
+    """Test a basic Maker/Model source"""
     ### Prepare
     mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "MyMaker", "IFD0:Model": "MyModel"})
     expectedSource = "MyMaker MyModel"
@@ -63,8 +66,8 @@ def test_getSources_Success():
     assert expectedSource == source
 
 
-# An iPhone file just returns the model
 def test_getSources_Apple():
+    """An iPhone file just returns the model"""
     ### Prepare
     mediaFile = MediaFile(
         Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "Apple", "IFD0:Model": "iPhone 13 mini"}
@@ -78,8 +81,8 @@ def test_getSources_Apple():
     assert expectedSource == source
 
 
-# A Google file just returns the model, too
 def test_getSources_Google():
+    """A Google file just returns the model, too"""
     ### Prepare
     mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "Google", "IFD0:Model": "Pixel 7"})
     expectedSource = "Pixel 7"
@@ -91,8 +94,8 @@ def test_getSources_Google():
     assert expectedSource == source
 
 
-# A Google file just returns the model, too
 def test_getSources_Olympus():
+    """Test an Olympus Image, were we tweak the Make bit"""
     ### Prepare
     mediaFile = MediaFile(
         Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "OLYMPUS IMAGING CORP.", "IFD0:Model": "ABC"}
@@ -106,9 +109,67 @@ def test_getSources_Olympus():
     assert expectedSource == source
 
 
-# Test quicktime files, that have their make/model in the "keys" group
-# A Quicktime file will probably come from Apple, but here, check make and model
+def test_getSources_Nikon():
+    """Test an Nikon Image, were we tweak the output bit"""
+    ### Prepare
+    mediaFile = MediaFile(
+        Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "NIKON CORPORATION", "IFD0:Model": "NIKON ABC"}
+    )
+    expectedSource = "Nikon ABC"
+
+    ### Run
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+
+    ### Assert
+    assert expectedSource == source
+
+
+def test_getSources_Canon():
+    """Test a Canon Image, where Canon is also in the model"""
+    ### Prepare
+    mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "Canon", "IFD0:Model": "Canon ABC"})
+    expectedSource = "Canon ABC"
+
+    ### Run
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+
+    ### Assert
+    assert expectedSource == source
+
+
+def test_getSources_Fuji():
+    """Test an Fuji Image, were we tweak the Make bit"""
+    ### Prepare
+    mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "Fujifilm", "IFD0:Model": "ABC"})
+    expectedSource = "Fuji ABC"
+
+    ### Run
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+
+    ### Assert
+    assert expectedSource == source
+
+
+def test_getSources_OnePlus5T():
+    """Test an Olympus Image, were we tweak the Model bit"""
+    ### Prepare
+    mediaFile = MediaFile(
+        Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Make": "OnePlus", "IFD0:Model": "OnePlus A5010"}
+    )
+    expectedSource = "OnePlus 5T"
+
+    ### Run
+    source = mediaFile._getFileSource()  # pyright: ignore[reportPrivateUsage] testing private method
+
+    ### Assert
+    assert expectedSource == source
+
+
 def test_getSources_Quicktime():
+    """Test quicktime files, that have their make/model in the "keys" group
+
+    A Quicktime file will probably come from Apple, but here, check make and model
+    """
     ### Prepare
     mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"Keys:Make": "MyMaker", "Keys:Model": "MyModel"})
     expectedSource = "MyMaker MyModel"
@@ -120,8 +181,8 @@ def test_getSources_Quicktime():
     assert expectedSource == source
 
 
-# Screenshots are tagged as such in the User Comments tag ("XMP-exif:UserComment") at least in iPhones
 def test_getSources_screenshot():
+    """Screenshots are tagged as such in the User Comments tag ("XMP-exif:UserComment") at least in iPhones"""
     ### Prepare
     mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"XMP-exif:UserComment": "Screenshot"})
     expectedSource = "iOS Screenshot"
@@ -133,8 +194,8 @@ def test_getSources_screenshot():
     assert expectedSource == source
 
 
-# Instagram pics
 def test_getSources_Instagram():
+    """Instagram pics"""
     ### Prepare
     mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"XMP:Software": "Something Something Instagram"})
     expectedSource = "Instagram"
@@ -151,8 +212,8 @@ def test_getSources_Instagram():
     assert expectedSource2 == source2
 
 
-# Screenshots are tagged as such in the User Comments tag ("XMP-exif:UserComment") at least in iPhones
 def test_getSources_PicsArt():
+    """Sources for a PicsArt image"""
     ### Prepare
     mediaFile = MediaFile(Path("A.jpg"), "2025-10-10T08:01:02+00:00", {"IFD0:Software": "PicsArt"})
     expectedSource = "PicsArt"
@@ -164,14 +225,16 @@ def test_getSources_PicsArt():
     assert expectedSource == source
 
 
-# Now check that the order for the sources rules is followed:
-# 1. Make And Model
-# 2. iOS Screenshots
-# 3. Instagram
-# 4. PicsArt
-# 5. Photoshop
-# Then Whatsapp
 def test_getSources_testPrecedenceOrder():
+    """Now check that the order for the sources rules is followed:
+
+    # 1. Make And Model
+    # 2. iOS Screenshots
+    # 3. Instagram
+    # 4. PicsArt
+    # 5. Photoshop
+    # Then Whatsapp
+    """
     ### Prepare
     mediaFile1 = MediaFile(
         Path("A.jpg"),
@@ -261,6 +324,7 @@ getSidecar
 
 
 def test_getSidecar_sidecarWithSameName():
+    """File has a sidecar, with same name, and aae extension"""
     ### Prepare
     mediaFile = MediaFile(
         Path("sidecarExists.jpg"),
@@ -273,10 +337,7 @@ def test_getSidecar_sidecarWithSameName():
     monkeypatch = MonkeyPatch()
 
     def mocked_is_file(self: Path):
-        if self.name == "sidecarExists.aae":
-            return True
-        else:
-            return False
+        return self.name == "sidecarExists.aae"
 
     monkeypatch.setattr(Path, "is_file", mocked_is_file)
 
@@ -290,6 +351,7 @@ def test_getSidecar_sidecarWithSameName():
 
 
 def test_getSidecar_sidecarWithOSuffix():
+    """File has a sidecar, with same name, and aae extension and the O suffix"""
     ### Prepare
     mediaFile = MediaFile(
         Path("sidecarExists.jpg"),
@@ -302,10 +364,7 @@ def test_getSidecar_sidecarWithOSuffix():
     monkeypatch = MonkeyPatch()
 
     def mocked_is_file(self: Path):
-        if self.name == "sidecarExistsO.aae":
-            return True
-        else:
-            return False
+        return self.name == "sidecarExistsO.aae"
 
     monkeypatch.setattr(Path, "is_file", mocked_is_file)
 
@@ -319,6 +378,7 @@ def test_getSidecar_sidecarWithOSuffix():
 
 
 def test_getSidecar_sidecarDoesntExist():
+    """A file with no sidecar"""
     ### Prepare
     mediaFile = MediaFile(
         Path("sidecarDoesNotExists.jpg"),

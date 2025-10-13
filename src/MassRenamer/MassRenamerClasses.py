@@ -34,19 +34,28 @@ Functions:
     on it, and the metadata needed in the renaming process
 """
 
+import contextlib
 from collections import Counter
+from collections.abc import Callable
 from json import JSONDecodeError, dumps, load
 from logging import getLogger
 from pathlib import Path
-from re import compile, match, search
+from re import IGNORECASE, compile, match, search, sub
 from subprocess import run
-from typing import Callable
 
 from natsort import os_sorted
 from tzfpy import get_tz
 from whenever import OffsetDateTime, PlainDateTime, TimeDelta, ZonedDateTime
 
 module_logger = getLogger(__name__)
+
+####
+# Constants
+####
+
+# The normal length of the offset part on a datetime string: for example '+01:00'
+OFFSET_STRING_LENGTH: int = 6
+
 
 ####
 # Lists
@@ -501,7 +510,7 @@ class MediaFile:
 
     # Use slots, instead of a dict, for the attributes. This makes the attribs static, but require less memory per
     # object and has faster access
-    __slots__ = "fileName", "dateTime", "source", "sidecar", "EXIFTags", "newName"
+    __slots__ = "EXIFTags", "dateTime", "fileName", "newName", "sidecar", "source"
 
     # NOTE: Tested
     def __init__(self, fileName: Path, dateTime: str | None, EXIFTags: dict[str, str] | None = None):
@@ -559,7 +568,7 @@ class MediaFile:
         return cls(fileName=filename_, dateTime=dateTime_, EXIFTags=etTagsDict)
 
     @staticmethod
-    def _findCreationTime(exifToolData: dict[str, str]) -> str | None:
+    def _findCreationTime(exifToolData: dict[str, str]) -> str | None:  # noqa: PLR0912 Too many loops in this file, but I don't want to think on how to avoid them ¯\_(ツ)_/¯
         """Returns the Creation Time and Date (in the local time) of creation of a file
 
         with EXIF data and the time offset respect UTC, extracted from the metadata returned by
@@ -621,10 +630,10 @@ class MediaFile:
                 # offset tags to check too. We'll give preference to the GPS as it's absolute (the offset tag requires
                 # having set the time and date correctly, obviously)
                 if (
-                    "GPS:GPSLatitudeRef" in exifToolData.keys()
-                    and "GPS:GPSLatitude" in exifToolData.keys()
-                    and "GPS:GPSLongitudeRef" in exifToolData.keys()
-                    and "GPS:GPSLongitude" in exifToolData.keys()
+                    "GPS:GPSLatitudeRef" in exifToolData
+                    and "GPS:GPSLatitude" in exifToolData
+                    and "GPS:GPSLongitudeRef" in exifToolData
+                    and "GPS:GPSLongitude" in exifToolData
                 ):
                     # Latitude and longitude follow the "GGG deg MM' SS.00"" format, we have a regexp to capture the
                     # numbers
@@ -656,32 +665,31 @@ class MediaFile:
                         # so we have a time with the same "value" but on a different tz, and then to fixed offset (as we
                         # can't store the timezone string in the tags)
                         date = date.to_tz(myTZ).to_fixed_offset()
-                else:
-                    # No GPS location, try offsets
-                    if tag in OFFSET_DICT.keys() and OFFSET_DICT[tag] in exifToolData.keys():
-                        offsetStr = exifToolData[OFFSET_DICT[tag]]
-                        if len(offsetStr) == 6:
-                            offsetSign = offsetStr[0]  # + or -
-                            offsetHours = offsetStr[1:3]  # HH
-                            offsetMin = offsetStr[4:]  # skip : and get MM
+                # No GPS location, try offsets
+                elif tag in OFFSET_DICT and OFFSET_DICT[tag] in exifToolData:
+                    offsetStr = exifToolData[OFFSET_DICT[tag]]
+                    if len(offsetStr) == OFFSET_STRING_LENGTH:
+                        offsetSign = offsetStr[0]  # + or -
+                        offsetHours = offsetStr[1:3]  # HH
+                        offsetMin = offsetStr[4:]  # skip : and get MM
 
-                            # "Delete" the current offset by considering the date a plain date, and then create a new
-                            # fixed offset. By passing the offset as a "TimeDelta" we can pass "fractional" offsets
-                            # (01:30). To get a negative offset, we have to pass "negative" hours and "negative" minutes
-                            # (otherwise they cancel each other out: -2h and +30 minutes is -01:30)
-                            offsetTimeDelta = TimeDelta(
-                                hours=int(offsetSign + offsetHours), minutes=int(offsetSign + offsetMin)
-                            )
-                        elif offsetStr == "Z":
-                            offsetTimeDelta = TimeDelta(hours=0)
-                        else:
-                            # Offset has to be ±HH:MM or 'Z'
-                            raise ValueError(
-                                f"In {exifToolData['SourceFile']}: Offset ('{offsetStr}') string has wrong length"
-                            )
-                        # Type dance: convert to plain (to get rid of whatever offset it had), assume it has a certain
-                        # fixed offset, so we have a time with the same "value" but on a different offset.
-                        date = date.to_plain().assume_fixed_offset(offsetTimeDelta)
+                        # "Delete" the current offset by considering the date a plain date, and then create a new
+                        # fixed offset. By passing the offset as a "TimeDelta" we can pass "fractional" offsets
+                        # (01:30). To get a negative offset, we have to pass "negative" hours and "negative" minutes
+                        # (otherwise they cancel each other out: -2h and +30 minutes is -01:30)
+                        offsetTimeDelta = TimeDelta(
+                            hours=int(offsetSign + offsetHours), minutes=int(offsetSign + offsetMin)
+                        )
+                    elif offsetStr == "Z":
+                        offsetTimeDelta = TimeDelta(hours=0)
+                    else:
+                        # Offset has to be ±HH:MM or 'Z'
+                        raise ValueError(
+                            f"In {exifToolData['SourceFile']}: Offset ('{offsetStr}') string has wrong length"
+                        )
+                    # Type dance: convert to plain (to get rid of whatever offset it had), assume it has a certain
+                    # fixed offset, so we have a time with the same "value" but on a different offset.
+                    date = date.to_plain().assume_fixed_offset(offsetTimeDelta)
                 break
 
         if date:
@@ -705,40 +713,52 @@ class MediaFile:
         Returns:
             str | None: a string with the source if it can be built from Make and Model tags, None otherwise
         """
+        retVal: str | None = None
         # Check 'IFD0' tags, the most frequently used, and if not present, 'Keys'
         make: str | None = None
-        if "IFD0:Make" in self.EXIFTags.keys():
+        if "IFD0:Make" in self.EXIFTags:
             make = self.EXIFTags["IFD0:Make"]
-        elif "Keys:Make" in self.EXIFTags.keys():
+        elif "Keys:Make" in self.EXIFTags:
             make = self.EXIFTags["Keys:Make"]
 
         model: str | None = None
-        if "IFD0:Model" in self.EXIFTags.keys():
+        if "IFD0:Model" in self.EXIFTags:
             model = self.EXIFTags["IFD0:Model"]
-        elif "Keys:Model" in self.EXIFTags.keys():
+        elif "Keys:Model" in self.EXIFTags:
             model = self.EXIFTags["Keys:Model"]
 
         if make and model:
             # Return make + model, except in some cases
             if make.lower() == "apple" or make.lower() == "google":
                 # Remove "Apple" and "Google" from the source, just a preference
-                return model
+                retVal = model
             elif make.lower() == "olympus imaging corp.":
                 # That's just too long
-                return "Olympus " + model
+                # Check that the model doesn't also contain the word "Olympus" on it, so we don't tag it twice, and if
+                # so, strip
+                model = sub("olympus", "", model, count=0, flags=IGNORECASE)
+                # And hopefully this will be "Olympus" + "CameraModel"
+                retVal = "Olympus " + model.strip()
+            elif make.lower() == "nikon corporation":
+                # Another one that is just too long, and all caps
+                # Check that the model doesn't contain the word "Nikon" on it, so we don't tag it twice
+                model = sub("nikon", "", model, count=0, flags=IGNORECASE)
+                # And hopefully this will be "Nikon" + "CameraModel"
+                retVal = "Nikon " + model.strip()
+            elif make.lower() == "canon":
+                # Canon adds "Canon" to the model too, so make + model would be "Canon Canon", strip
+                model = sub("canon", "", model, count=0, flags=IGNORECASE)
+                retVal = make + " " + model.strip()
             elif make.lower() == "fujifilm":
                 # It's odd to see Fuji as Fujifilm, remove the "film" bit
-                return "Fuji " + model
+                retVal = "Fuji " + model
             elif model.lower() == "oneplus a5010":
                 # OnePlus adds the Make to the model, and uses the model number instead of the common name
-                return make + "5T"
-            elif make.lower() == "canon":
-                # Canon adds "Canon" to the model too, so make + model is "Canon Canon"
-                return model
+                retVal = make + " 5T"
             else:
-                return make + " " + model
+                retVal = make + " " + model
 
-        return None
+        return retVal
 
     def _isScreenshot(self) -> str | None:
         """Checks the tags to determine if the MediaFile is a Screenshot
@@ -750,9 +770,8 @@ class MediaFile:
             str | None: "Screenshot" if it's a iOS screenshot, None otherwise
         """
         for tag in USER_COMMENTS_TAGS_LIST:
-            if tag in self.EXIFTags.keys():
-                if self.EXIFTags[tag].lower() == "screenshot":
-                    return "iOS Screenshot"
+            if tag in self.EXIFTags and self.EXIFTags[tag].lower() == "screenshot":
+                return "iOS Screenshot"
         return None
 
     def _isInstragram(self) -> str | None:
@@ -763,7 +782,7 @@ class MediaFile:
         """
         # If there's any key with partial match with "Software", the list comprehension
         # will not be empty
-        softwareKeys = [key for key in self.EXIFTags.keys() if "software" in key.lower()]
+        softwareKeys = [key for key in self.EXIFTags if "software" in key.lower()]
         # Check for each key, while the flag is false, if the UserComment contains "facebook"
         # or "instagram"
         if softwareKeys != []:
@@ -784,7 +803,7 @@ class MediaFile:
         """
         # If there's any key with partial match with "Software", the list comprehension
         # will not be empty
-        softwareKeys = [key for key in self.EXIFTags.keys() if "software" in key.lower()]
+        softwareKeys = [key for key in self.EXIFTags if "software" in key.lower()]
         # Check for each key, while the flag is false, if the UserComment contains "facebook"
         # or "instagram"
         if softwareKeys != []:
@@ -804,7 +823,7 @@ class MediaFile:
         Returns:
             str | None: "PicsArt" if it comes from PicsArt, None otherwise
         """
-        if "IFD0:Software" in self.EXIFTags.keys() and self.EXIFTags["IFD0:Software"] == "PicsArt":
+        if "IFD0:Software" in self.EXIFTags and self.EXIFTags["IFD0:Software"] == "PicsArt":
             return "PicsArt"
 
         return None
@@ -952,7 +971,9 @@ def getFilesInFolder(inputFolder: Path) -> int:
     """
     numFiles: int = 0
     cmdFind: list[str | Path] = ["exiftool", "-listdir", "-r", '"' + str(inputFolder) + '"']
-    p = run(" ".join(str(x) for x in cmdFind), capture_output=True, shell=True, text=True)
+    # There's a linter warning about using shell=True being a security issue, but setting it to false triggers another
+    # so it seems that you can't win and nobody is going to exploit this, so ignoring
+    p = run(" ".join(str(x) for x in cmdFind), capture_output=True, shell=True, text=True, check=True)  # noqa: S602
     result = search("([0-9]*) image files read", p.stdout)
     if result:
         numFiles = int(result.group(1))
@@ -1000,14 +1021,11 @@ def isTagATimeTag(tag: str) -> bool:
             # One Corner Case is that System File tags ("System:FileModifyDate", "System:FileAccessDate",
             # "System:FileCreateDate") are not in the list (as they might not be treated as EXIF tags)
             # Same for our "Inferred" dates
-            if tagGroup == "System":
+            if tagGroup in {"System", "Inferred"}:
                 return True
-            elif tagGroup == "Inferred":
-                return True
-        else:
-            # The tag might have been passed without a group, let's check it nevertheless
-            if tag in TIME_TAGS_LIST:
-                return True
+        # The tag might have been passed without a group, let's check it nevertheless
+        elif tag in TIME_TAGS_LIST:
+            return True
     # Otherwise, it's not a time tag
     return False
 
@@ -1038,24 +1056,20 @@ def inferDateFromNeighbours(datelessMFIdx: int, mediaFileList: list[MediaFile]) 
     # has a date. We get a list of items with date using filter(), plus a lambda, and next(). And then we use
     # list.index() to get the index of that number. If no item is found or the list is empty, we
     # Boom! (almost a) One-liner!
-    try:
+    with contextlib.suppress(StopIteration):
         datedObjectIdxRight = mediaFileList.index(
             next(filter(lambda instance: instance.dateTime is not None, mediaFileList[datelessMFIdx:]))
         )
-    except StopIteration:
-        # The search list was an empty list (dateless item was last item of the list), or no more dated items were found
-        # Leave datedObjectIdxRight as None
-        pass
+    # On exception, the search list was an empty list (dateless item was last item of the list), or no more dated items
+    # were found. Leave datedObjectIdxRight as None
 
     # For the  left side, we reverse the search sublist
-    try:
+    with contextlib.suppress(StopIteration):
         datedObjectIdxLeft = mediaFileList.index(
             next(filter(lambda instance: instance.dateTime is not None, reversed(mediaFileList[:datelessMFIdx])))
         )
-    except StopIteration:
-        # The search list was an empty list (dateless item was last item of the list), or no more dated items were found
-        # Leave datedObjectIdxRight as None
-        pass
+    # On exception, the search list was an empty list (dateless item was last item of the list), or no more dated items
+    # were found. Leave datedObjectIdxLeft as None
 
     # At this point, datedObjectIdxLR are not None. They are -1 if no dated item was found on that side, or >=0 if a
     # dated item was found
@@ -1096,7 +1110,7 @@ def findNewNames(mediaFileList: list[MediaFile], parentFolder: Path) -> None:
         parentFolder (Path): the parent folder to use as a base for the renaming process.
     """
     # Create a list of available sources
-    availableSources = set([instance.source for instance in mediaFileList])
+    availableSources = {instance.source for instance in mediaFileList}
 
     for source in availableSources:
         # Date Histogram:
