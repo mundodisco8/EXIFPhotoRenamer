@@ -21,7 +21,7 @@ class SunnyBeach(StrEnum):
     darkOrange = "#f2b2a2"
 
 
-class toRenameModel(QAbstractTableModel):
+class ToRenameModel(QAbstractTableModel):
     """A model to show renameable files and their proposed new names together
 
     Stores a list of tuples (str, str|none) with the format
@@ -138,7 +138,7 @@ class toRenameModel(QAbstractTableModel):
         return retList
 
 
-class showDatelessModel(QAbstractTableModel):
+class ShowDatelessModel(QAbstractTableModel):
     """A model for the dateless items table
 
     Stores a list of items that don't have currently a poposed date, and any proposed new dates for them. It stores it
@@ -237,7 +237,7 @@ class showDatelessModel(QAbstractTableModel):
 
 
 # TODO: Change name!
-class fixDateModel(QAbstractTableModel):
+class FixDateModel(QAbstractTableModel):
     """A Model for the table that presents the date tags of a dateless item
 
     Args:

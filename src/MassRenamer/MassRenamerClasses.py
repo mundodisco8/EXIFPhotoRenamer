@@ -971,7 +971,9 @@ def getFilesInFolder(inputFolder: Path) -> int:
     """
     numFiles: int = 0
     cmdFind: list[str | Path] = ["exiftool", "-listdir", "-r", '"' + str(inputFolder) + '"']
-    p = run(" ".join(str(x) for x in cmdFind), capture_output=True, shell=True, text=True, check=True)
+    # There's a linter warning about using shell=True being a security issue, but setting it to false triggers another
+    # so it seems that you can't win and nobody is going to exploit this, so ignoring
+    p = run(" ".join(str(x) for x in cmdFind), capture_output=True, shell=True, text=True, check=True)  # noqa: S602
     result = search("([0-9]*) image files read", p.stdout)
     if result:
         numFiles = int(result.group(1))

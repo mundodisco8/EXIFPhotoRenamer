@@ -20,7 +20,7 @@ generateSortedMediaFileList()
 
 
 # Tags for one single file
-tagsForOneInstance = [
+TAGS_FOR_ONE_INSTANCE = [
     {
         "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
         "PNG:CreateDate": "2025-09-03T17:29:21+01:00",
@@ -35,7 +35,7 @@ def test_generateSortedMediaFileList_OneObject():
 
     ### Run Test
 
-    mediaFileList = generateSortedMediaFileList(tagsForOneInstance)
+    mediaFileList = generateSortedMediaFileList(TAGS_FOR_ONE_INSTANCE)
 
     ### Assert
     assert mediaFileList[0].fileName == Path("C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png")
@@ -51,7 +51,7 @@ def test_generateSortedMediaFileList_OneObject():
 
 # Contains the tags of a a bunch of MediaFile objects, and they are already sorted
 
-tagsManyAndOrdered = [
+TAGS_MANY_AND_ORDERED = [
     {
         "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
         "PNG:CreateDate": "2025-09-03T17:29:21+01:00",
@@ -88,7 +88,7 @@ def test_generateSortedMediaFileList_ManyOrderedObject():
     ### Prepare
 
     ### Run code
-    mediaFileList = generateSortedMediaFileList(tagsManyAndOrdered)
+    mediaFileList = generateSortedMediaFileList(TAGS_MANY_AND_ORDERED)
 
     ### Assert
     # No need to check all instances, just that they are in the right order
@@ -115,7 +115,7 @@ def test_generateSortedMediaFileList_ManyOrderedObject():
 
 # Contains the tags of a a bunch of MediaFile objects, but they are not sorted
 
-tagsManyAndNotOrdered = [
+TAGS_MANY_AND_NOT_ORDERED = [
     {
         "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/141.png",
         "PNG:CreateDate": "2025-09-03T17:31:04+01:00",
@@ -152,7 +152,7 @@ def test_generateSortedMediaFileList_ManyNotOrderedObject():
     ### Prepare
 
     ### Run code
-    mediaFileList = generateSortedMediaFileList(tagsManyAndNotOrdered)
+    mediaFileList = generateSortedMediaFileList(TAGS_MANY_AND_NOT_ORDERED)
 
     ### Assert
     # No need to check all instances, just that they are in the right order
@@ -177,7 +177,7 @@ def test_generateSortedMediaFileList_ManyNotOrderedObject():
     )
 
 
-tagsIgnoreExtension = [
+TAGS_IGNORE_EXTENSION = [
     {
         "SourceFile": "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-25 - iPhone 15.mov",
         "QuickTime:CreateDate": "2018-02-25T09:46:20",
@@ -196,7 +196,7 @@ tagsIgnoreExtension = [
 
 def test_generateSortedMediaFileList_filesWithIgnoredExtensions():
     """Check that files with extensions in the ignore types list are excluded"""
-    mediaFileList = generateSortedMediaFileList(tagsIgnoreExtension)
+    mediaFileList = generateSortedMediaFileList(TAGS_IGNORE_EXTENSION)
     print(mediaFileList)
     assert len(mediaFileList) == 1
 
@@ -210,7 +210,7 @@ loadExifToolTagsFromFile
 """
 
 # Fake contents for the file used in the test below
-testFileData: str = """[
+TEST_FILE_DATA: str = """[
 {
     "SourceFile": "/media/joel/Backup/Fotos Mac Organizadas/2018/2018-02-28 - iPhone 31.mov",
     "QuickTime:CreateDate": "2018:02:28 02:25:37",
@@ -233,7 +233,7 @@ def test_loadExifToolTagsFromFile_success(mocker: MockerFixture):
     """Tests that we can create multiple MediaFile items from a JSON with EXIF Tags"""
     ### Prepare test
     # Test file is a string with tags to create two MediaFile objects
-    mockFileOpen = mocker.mock_open(read_data=testFileData)  # pyright: ignore[reportUnknownMemberType]
+    mockFileOpen = mocker.mock_open(read_data=TEST_FILE_DATA)  # pyright: ignore[reportUnknownMemberType]
     mocker.patch("builtins.open", mockFileOpen)
 
     ### Run code
@@ -246,14 +246,14 @@ def test_loadExifToolTagsFromFile_success(mocker: MockerFixture):
 
 
 # Fake contents for the file used in the test below
-testFileDataNoJson: str = """some Text"""
+TEST_FILE_DATA_NO_JSON: str = """some Text"""
 
 
 def test_loadExifToolTagsFromFile_FileIsNotJSON(mocker: MockerFixture):
     """Tests we raise and exception if the opened file doesn't contain JSON data"""
     ### Prepare test
     # Test file is a string with tags to create two MediaFile objects
-    mockFileOpen = mocker.mock_open(read_data=testFileDataNoJson)  # pyright: ignore[reportUnknownMemberType]
+    mockFileOpen = mocker.mock_open(read_data=TEST_FILE_DATA_NO_JSON)  # pyright: ignore[reportUnknownMemberType]
     mocker.patch("builtins.open", mockFileOpen)
 
     with raises(JSONDecodeError):
@@ -272,7 +272,7 @@ def test_loadExifToolTagsFromFile_FileDoesntExist():
 """
 
 # The MediaFile list to store in the test below
-mediaFileList = [
+TEST_MEDIA_FILE_LIST = [
     MediaFile(
         Path("A.jpg"),
         None,
@@ -307,7 +307,7 @@ def test_storeMediaFileList_success(mocker: MockerFixture):
     ]
 
     ### Run
-    storeMediaFileListTags(Path("RandomFile.txt"), mediaFileList)
+    storeMediaFileListTags(Path("RandomFile.txt"), TEST_MEDIA_FILE_LIST)
 
     ### Assert
     mockOpen.assert_called_with(Path("RandomFile.txt"), "w")
@@ -346,7 +346,7 @@ def test_storeMediaFileList_successCheckOutput(mocker: MockerFixture):
     mocker.patch("builtins.open", mockOpen)
 
     ### Run
-    storeMediaFileListTags(Path("RandomFile.txt"), mediaFileList)
+    storeMediaFileListTags(Path("RandomFile.txt"), TEST_MEDIA_FILE_LIST)
 
     ### Assert
     # get stuff written to the file, is stored in writer.contents

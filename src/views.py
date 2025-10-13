@@ -37,11 +37,11 @@ from MassRenamer.MassRenamerClasses import (
 )
 from models import (
     FileListModel,
+    FixDateModel,
+    ShowDatelessModel,
     TagListModel,
+    ToRenameModel,
     ValueListModel,
-    fixDateModel,
-    showDatelessModel,
-    toRenameModel,
 )
 
 logger = getLogger(__name__)
@@ -110,7 +110,7 @@ class Window(QWidget, Ui_MainWindow):
         self.mediaFileViewer = MediaFileViewer(self)
         ## Rename files Tab
         # This list shows the files about to be renamed
-        self.toRenameModel = toRenameModel()
+        self.toRenameModel = ToRenameModel()
         self.toRenamePreviewTable.setModel(self.toRenameModel)
         self.toRenamePreviewTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.toRenamePreviewTable.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
@@ -128,7 +128,7 @@ class Window(QWidget, Ui_MainWindow):
         ## Fix Dates Tab
         # toFixDates Table: shows the filenames of the files that don't have dates, and the currently selected date for
         # that file, if one has already been chosen
-        self.showDatelessModel = showDatelessModel()
+        self.showDatelessModel = ShowDatelessModel()
         self.toFixDatesTableView.setModel(self.showDatelessModel)
         self.toFixDatesTableView.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.toFixDatesTableView.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
@@ -138,7 +138,7 @@ class Window(QWidget, Ui_MainWindow):
         # I have to override the key press event of the widget with my own keyPressEvent method
         self.toFixDatesTableView.keyPressEvent = self.selectDateWithHotkey
         # Create a model for the date fixer view, and assign it to the View widget
-        self.fixDateModel = fixDateModel()
+        self.fixDateModel = FixDateModel()
         self.datesTableView.setModel(self.fixDateModel)
         self.datesTableView.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.datesTableView.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
@@ -348,7 +348,7 @@ class Window(QWidget, Ui_MainWindow):
         clashList = [x.newName for x in mediaFilesToRename if x.newName and x.newName.is_file()]
         if clashList:
             # Show a Warning dialog
-            dlg = renameFilesWarningDialog(self)
+            dlg = RenameFilesWarningDialog(self)
             numberClashes = len(clashList)
             if numberClashes == 1:
                 dlg.messageTxt.setText("The proposed new names clash with one existing file")
@@ -734,7 +734,7 @@ class MediaFileViewer(QDialog, Ui_MediaFileViewer):
         self.setupUi(self)  # pyright: ignore[reportUnknownMemberType]
 
 
-class renameFilesWarningDialog(QDialog, Ui_renameWarningDialog):
+class RenameFilesWarningDialog(QDialog, Ui_renameWarningDialog):
     """A custom warning dialog shown when there's a risk of file overwrites during the rename process
 
     It displays a list of the files that are clashing

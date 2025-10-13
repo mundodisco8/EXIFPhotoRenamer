@@ -18,7 +18,7 @@ MediaFile._findCreationTime()
 """
 
 
-hasDateTimeOriginalWithOffsetDict: dict[str, str] = {
+HAS_DATETIME_ORIGINAL_WITH_OFFSET_DICT: dict[str, str] = {
     "ExifIFD:DateTimeOriginal": "2025-01-01T10:48:44+00:00",
     "ExifIFD:CreateDate": "2025-01-02T11:00:00+01:00",
 }
@@ -30,7 +30,7 @@ def test_findCreationTime_hasDateTimeOriginalWithOffset():
     expectedDateTimeStr = "2025-01-01T10:48:44+00:00"
 
     ### Execute
-    date = MediaFile._findCreationTime(hasDateTimeOriginalWithOffsetDict)  # pyright: ignore[reportPrivateUsage]
+    date = MediaFile._findCreationTime(HAS_DATETIME_ORIGINAL_WITH_OFFSET_DICT)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date
@@ -55,21 +55,21 @@ def test_findCreationTime_hasPNGDate():
     assert expectedDateTimeStr == date
 
 
-offsetInItsOwnTag: dict[str, str] = {
+OFFSET_IN_ITS_OWN_TAG: dict[str, str] = {
     "ExifIFD:DateTimeOriginal": "2025-01-01T10:48:44+00:00",
     "ExifIFD:OffsetTimeOriginal": "+01:00",  # <- correct offset for DateTimeOriginal
     "ExifIFD:OffsetTime": "+02:00",
     "ExifIFD:OffsetTimeDigitized": "+03:00",
 }
 
-offsetInItsOwnTag2: dict[str, str] = {
+OFFSET_IN_ITS_OWN_TAG_2: dict[str, str] = {
     "ExifIFD:CreateDate": "2025-01-01T10:48:44-05:00",
     "ExifIFD:OffsetTimeOriginal": "+01:00",
     "ExifIFD:OffsetTime": "+02:00",
     "ExifIFD:OffsetTimeDigitized": "-03:30",  # <- correct offset for CreateDate
 }
 
-noOffsetInTagButHasOffsetTag: dict[str, str] = {
+NO_OFFSET_IN_TAG_BUT_HAS_OFFSET_TAG: dict[str, str] = {
     "ExifIFD:CreateDate": "2025-01-01T10:48:44",
     "ExifIFD:OffsetTimeDigitized": "+02:00",  # <- correct offset for CreateDate
 }
@@ -81,7 +81,7 @@ def test_findCreationTime_hasOffsetInAnotherTag():
     expectedDateTimeStr = "2025-01-01T10:48:44+01:00"
 
     ### Execute
-    date = MediaFile._findCreationTime(offsetInItsOwnTag)  # pyright: ignore[reportPrivateUsage]
+    date = MediaFile._findCreationTime(OFFSET_IN_ITS_OWN_TAG)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date
@@ -90,7 +90,7 @@ def test_findCreationTime_hasOffsetInAnotherTag():
     expectedDateTimeStr2 = "2025-01-01T10:48:44-03:30"
 
     ### Execute
-    date2 = MediaFile._findCreationTime(offsetInItsOwnTag2)  # pyright: ignore[reportPrivateUsage]
+    date2 = MediaFile._findCreationTime(OFFSET_IN_ITS_OWN_TAG_2)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr2 == date2
@@ -99,13 +99,13 @@ def test_findCreationTime_hasOffsetInAnotherTag():
     expectedDateTimeStr3 = "2025-01-01T10:48:44+02:00"
 
     ### Execute
-    date3 = MediaFile._findCreationTime(noOffsetInTagButHasOffsetTag)  # pyright: ignore[reportPrivateUsage]
+    date3 = MediaFile._findCreationTime(NO_OFFSET_IN_TAG_BUT_HAS_OFFSET_TAG)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr3 == date3
 
 
-noOffsetInTagOffsetTagWrong: dict[str, str] = {
+NO_OFFSET_IN_TAG_OFFSET_TAG_WRONG: dict[str, str] = {
     "SourceFile": "myFileName.jpg",  # we need a file name to display the error message
     "ExifIFD:CreateDate": "2025-01-01T10:48:44",
     "ExifIFD:OffsetTimeDigitized": "+02:000",  # <- correct offset for CreateDate
@@ -116,10 +116,10 @@ def test_findCreationTime_hasOffsetTagButOffsetWrong():
     """We got a date, but offset is in a separate tag and the format is wrong, we raise an exception"""
     # Check that ValueError is raised
     with raises(ValueError):
-        MediaFile._findCreationTime(noOffsetInTagOffsetTagWrong)  # pyright: ignore[reportPrivateUsage]
+        MediaFile._findCreationTime(NO_OFFSET_IN_TAG_OFFSET_TAG_WRONG)  # pyright: ignore[reportPrivateUsage]
 
 
-noOffset: dict[str, str] = {
+NO_OFFSET: dict[str, str] = {
     "ExifIFD:DateTimeOriginal": "2025-01-01T10:48:44",
 }
 
@@ -130,13 +130,13 @@ def test_findCreationTime_noOffset_ConsiderUTC():
     expectedDateTimeStr = "2025-01-01T10:48:44+00:00"
 
     ### Execute
-    date = MediaFile._findCreationTime(noOffset)  # pyright: ignore[reportPrivateUsage]
+    date = MediaFile._findCreationTime(NO_OFFSET)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date
 
 
-noDates: dict[str, str] = {
+NO_DATES: dict[str, str] = {
     "Keys:CreationDate": "2025-01-03T16:58:21+00:00",
     "Keys:Make": "Apple",
     "Keys:Model": "iPhone 13 mini",
@@ -150,7 +150,7 @@ def test_findCreationDate_noDates():
     expectedDateTimeStr = None
 
     ### Execute
-    date = MediaFile._findCreationTime(noDates)  # pyright: ignore[reportPrivateUsage]
+    date = MediaFile._findCreationTime(NO_DATES)  # pyright: ignore[reportPrivateUsage]
 
     ### Assert
     assert expectedDateTimeStr == date
@@ -235,7 +235,7 @@ inferDateFromNeighbours
 
 # This list contains an item without date on position 1, and elements with dates in positions 0 and 2 (just right next
 # to the dateless item)
-exifTagsForTest1 = [
+EXIF_TAGS_FOR_TEST_1 = [
     {
         "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
         "XMP-photoshop:DateCreated": "2018-12-12T18:40:16+00:00",
@@ -263,7 +263,7 @@ exifTagsForTest1 = [
 def test_inferDateFromNeighboursTest1():
     """The simplest case, where the dateless item has dated items on both sides, just next to it"""
     ### Prepare
-    mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest1]
+    mediaFileList = [MediaFile.fromExifTags(tags) for tags in EXIF_TAGS_FOR_TEST_1]
     expectedDateFromLeft = "2018-12-12T18:41:16+00:00"
     expectedDateFromRight = "2018-12-09T18:44:56+00:00"
     datelessIdx = 1
@@ -278,7 +278,7 @@ def test_inferDateFromNeighboursTest1():
 
 # This list contains an item without date on position 2, and elements with dates in positions 0 and 4 (so, there are
 # more dateless items surrounding the date we want to infer)
-exifTagsForTest2 = [
+EXIF_TAGS_FOR_TEST_2 = [
     {
         "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
         "XMP-photoshop:DateCreated": "2018-12-12T18:40:16+00:00",
@@ -297,7 +297,7 @@ exifTagsForTest2 = [
 def test_inferDateFromNeighboursTest2():
     """Has a dateless item with dated items on both sides of the list, but with more dateless items in between"""
     ### Prepare
-    mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest2]
+    mediaFileList = [MediaFile.fromExifTags(tags) for tags in EXIF_TAGS_FOR_TEST_2]
     expectedDateFromLeft = "2018-12-12T18:42:16+00:00"
     expectedDateFromRight = "2025-01-01T10:45:44+00:00"
     datelessIdx = 2
@@ -311,7 +311,7 @@ def test_inferDateFromNeighboursTest2():
 
 
 # This list contains no dated item on it, so any check on its members will return None on both sides
-exifTagsForTest3 = [
+EXIF_TAGS_FOR_TEST_3 = [
     {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png"},
     {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/042.mov"},
     {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/141.png"},
@@ -324,12 +324,12 @@ exifTagsForTest3 = [
 def test_inferDateFromNeighboursTest3():
     """Test a list where one of the ends (left) has no items with a valid date"""
     ### Prepare
-    mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest3]
+    mediaFileList = [MediaFile.fromExifTags(tags) for tags in EXIF_TAGS_FOR_TEST_3]
     expectedDateFromLeft = None
     expectedDateFromRight = None
 
     ### Execute
-    for idx in range(len(exifTagsForTest3)):
+    for idx in range(len(EXIF_TAGS_FOR_TEST_3)):
         dateLeft, dateRight = inferDateFromNeighbours(idx, mediaFileList)
 
         ### Assert
@@ -338,7 +338,7 @@ def test_inferDateFromNeighboursTest3():
 
 
 # This list contains no dated item on the left side, to check we don't overflow
-exifTagsForTest4Left = [
+EXIF_TAGS_FOR_TEST_4_LEFT = [
     {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png"},
     {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/042.mov"},
     {"SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/141.png"},
@@ -350,7 +350,7 @@ exifTagsForTest4Left = [
     },
 ]
 
-exifTagsForTest4Right = [
+EXIF_TAGS_FOR_TEST_4_RIGHT = [
     {
         "SourceFile": "C:/Users/mundo/OneDrive/Desktop/EXIFPhotoRenamer/FotosTest/A/028.png",
         "ExifIFD:DateTimeOriginal": "2025-01-01T10:48:44+00:00",
@@ -366,7 +366,7 @@ exifTagsForTest4Right = [
 def test_inferDateFromNeighboursTest4():
     """These lists have only dates on one side, to make sure we don't overflow the search or somehting silly"""
     ### Prepare
-    mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest4Left]
+    mediaFileList = [MediaFile.fromExifTags(tags) for tags in EXIF_TAGS_FOR_TEST_4_LEFT]
     expectedDateFromLeft = None
     expectedDateFromRight = "2025-01-01T10:45:44+00:00"
     datelessIdx = 2
@@ -379,7 +379,7 @@ def test_inferDateFromNeighboursTest4():
     assert expectedDateFromRight == dateRight
 
     ### Prepare
-    mediaFileList = [MediaFile.fromExifTags(tags) for tags in exifTagsForTest4Right]
+    mediaFileList = [MediaFile.fromExifTags(tags) for tags in EXIF_TAGS_FOR_TEST_4_RIGHT]
     expectedDateFromLeft = "2025-01-01T10:50:44+00:00"
     expectedDateFromRight = None
     datelessIdx = 2
