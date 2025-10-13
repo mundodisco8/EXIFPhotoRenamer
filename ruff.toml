@@ -26,6 +26,10 @@ ignore = [
     "D100", # Ignore missing docstring in public module
     "D104", # Ignore missing docstring in public package
     "D107", # Ignore missing docstring in __init__
+    # D203 and D211 are incompatible, I pick 211
+    "D203", # Ignore force line between class definition and docstring
+    # D212 and D213 are incompatible, I pick 212
+    "D213", # Ignore docstring summary lines that are not positioned on the second physical line of the docstring
     "D400", # Ignore first line must end in '.', hyperpedantic, considering the first line is a docstring
     "D401", # Ignore first line of doscstring should be imperative
     "D413", # Ignore blank line after last section of a docstring, is just wasted space

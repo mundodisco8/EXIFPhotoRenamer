@@ -6,8 +6,7 @@ tweaks.
 It provides a bunch of formatters and a quick way to add a custom file and/or console formatter
 
 Example:
-
-# from customLogger import emojiFormatter, configConsoleHandler, configFileHandler, CSVFormatter
+# from customLogger import EmojiFormatter, configConsoleHandler, configFileHandler, CSVFormatter
 # from logging import getLogger, Formatter, INFO
 # from time import sleep
 # from datetime import date
@@ -18,8 +17,8 @@ Example:
 # # Choose one of the two following options
 # # 1. Attach a console logger with the default formatter (colour levels) to the Logger object...
 # configConsoleHandler(logger)
-# # 2. ... or alternatively, add an emojiFormatter instance as the formatter, log only INFO and above
-# # configConsoleHandler(logger, emojiFormatter(), INFO)
+# # 2. ... or alternatively, add an EmojiFormatter instance as the formatter, log only INFO and above
+# # configConsoleHandler(logger, EmojiFormatter(), INFO)
 
 # # Attach a file logger (without colours) to the Logger object
 # today = date.today()
@@ -58,32 +57,32 @@ import module2 # has a logger, exposed as module_logger, but also depends on a t
 [...]
 logger = getLogger(__name__) # create a instance of a logger for this script/module, e.g. named "myScript"
 # use getLogger() as the logger instance to reach the root logger
-configConsoleHandler(getLogger(), emojiFormatter(), INFO)
+configConsoleHandler(getLogger(), EmojiFormatter(), INFO)
 # now myScript, module1, module2 and module3 loggers will print with the right formatter and level
 
 ```
 """
 
+from datetime import datetime, timezone
+from enum import StrEnum
 from logging import (
-    NOTSET,
-    Formatter,
-    DEBUG,
-    INFO,
-    WARNING,
-    ERROR,
     CRITICAL,
+    DEBUG,
+    ERROR,
+    INFO,
+    NOTSET,
+    WARNING,
+    FileHandler,
+    Formatter,
+    Logger,
     LogRecord,
     StreamHandler,
-    FileHandler,
-    Logger,
-    Handler,
 )
-from enum import StrEnum
-from datetime import datetime, timezone
 
 
 class TxtColour(StrEnum):
-    # Console Colours Available
+    """Console Colours Available"""
+
     red = "\x1b[31;20m"
     bold_red = "\x1b[31;1m"
     green = "\x1b[32;20m"
@@ -95,19 +94,19 @@ class TxtColour(StrEnum):
     reset = "\x1b[0m"
 
 
-defaultFormat: str = "%(delta)s |  %(levelname)8s | %(message)s"
+DEFAULT_FORMAT: str = "%(delta)s |  %(levelname)8s | %(message)s"
 
-colourFormatDict: dict[int, str] = {
-    DEBUG: TxtColour.blue + defaultFormat + TxtColour.reset,
-    INFO: TxtColour.green + defaultFormat + TxtColour.reset,
-    WARNING: TxtColour.yellow + defaultFormat + TxtColour.reset,
-    ERROR: TxtColour.red + defaultFormat + TxtColour.reset,
-    CRITICAL: TxtColour.bold_red + defaultFormat + TxtColour.reset,
+COLOUR_FORMAT_DICT: dict[int, str] = {
+    DEBUG: TxtColour.blue + DEFAULT_FORMAT + TxtColour.reset,
+    INFO: TxtColour.green + DEFAULT_FORMAT + TxtColour.reset,
+    WARNING: TxtColour.yellow + DEFAULT_FORMAT + TxtColour.reset,
+    ERROR: TxtColour.red + DEFAULT_FORMAT + TxtColour.reset,
+    CRITICAL: TxtColour.bold_red + DEFAULT_FORMAT + TxtColour.reset,
 }
 
-emojiFormatDict: dict[int, str] = {
+EMOJI_FORMAT_DICT: dict[int, str] = {
     DEBUG: "%(delta)s | 🐞 |" + TxtColour.cyan + " %(msg)s" + TxtColour.reset,
-    INFO: "%(delta)s | ℹ️ |" + TxtColour.green + " %(msg)s" + TxtColour.reset,
+    INFO: "%(delta)s | ℹ️ |" + TxtColour.green + " %(msg)s" + TxtColour.reset,  # noqa: RUF001
     WARNING: "%(delta)s | ⚠️ |" + TxtColour.yellow + " %(msg)s" + TxtColour.reset,
     ERROR: "%(delta)s | ⛔ |" + TxtColour.red + " %(msg)s" + TxtColour.reset,
     CRITICAL: "%(delta)s | 🙊 |" + TxtColour.bold_red + " %(msg)s" + TxtColour.reset,
@@ -125,12 +124,13 @@ class ColourFormatter(Formatter):
     def __init__(self):
         """Initialises the class"""
         super().__init__()
-        self.FORMATS = colourFormatDict
+        self.FORMATS = COLOUR_FORMAT_DICT
 
     def format(self, record: LogRecord):
         """Formats a record"""
         # Gets the current "relative since start time" from the record (which is in ms) and transforms it into a
-        # datetime object, which is then formatted and stored in the record as an attribute named "delta" (see defaultFormat)
+        # datetime object, which is then formatted and stored in the record as an attribute named "delta" (see
+        # defaultFormat)
         duration = datetime.fromtimestamp(record.relativeCreated / 1000, timezone.utc)
         record.delta = duration.strftime("%H:%M:%S")
         log_fmt = self.FORMATS.get(record.levelno)
@@ -138,7 +138,7 @@ class ColourFormatter(Formatter):
         return formatter.format(record)
 
 
-class emojiFormatter(Formatter):
+class EmojiFormatter(Formatter):
     """Logging colored + emoji for levels formatter,
 
     Logs messages with even more pop. Each debug level has a different colour and level is represented by an emoji.
@@ -150,9 +150,10 @@ class emojiFormatter(Formatter):
     def __init__(self):
         """Initialises the class"""
         super().__init__()
-        self.FORMATS = emojiFormatDict
+        self.FORMATS = EMOJI_FORMAT_DICT
 
     def format(self, record: LogRecord) -> str:
+        """Formats a record with the emoji format"""
         duration = datetime.fromtimestamp(record.relativeCreated / 1000, timezone.utc)
         record.delta = duration.strftime("%H:%M:%S")
         log_fmt = self.FORMATS.get(record.levelno)
@@ -162,16 +163,18 @@ class emojiFormatter(Formatter):
 
 class DeltaFormatter(Formatter):
     """Logging with delta timming
+
     Logs events with time relative to the start of the execution of the program
 
     [time delta in HH:MM:SS] | [debug level, right aligned] | message
     """
 
-    def __init__(self, formatStr: str = defaultFormat):
+    def __init__(self, formatStr: str = DEFAULT_FORMAT):
         """Initialises the class"""
         super().__init__(fmt=formatStr, datefmt="%H:%M:%S", style="%")
 
     def format(self, record: LogRecord) -> str:
+        """Formats a record with using timedeltas as the timing source"""
         duration = datetime.fromtimestamp(record.relativeCreated / 1000, timezone.utc)
         record.delta = duration.strftime("%H:%M:%S")
         formatter = super()
@@ -180,7 +183,8 @@ class DeltaFormatter(Formatter):
 
 class CSVFormatter(Formatter):
     """Logging with delta timming
-    Logs events with time relative to the start of the execution of the program
+
+        Logs events with time relative to the start of the execution of the program
 
     [time delta in HH:MM:SS] | [debug level, right aligned] | message
     """
@@ -190,13 +194,14 @@ class CSVFormatter(Formatter):
         super().__init__(fmt="%(delta)s, %(message)s", datefmt="%H:%M:%S", style="%")
 
     def format(self, record: LogRecord) -> str:
+        """Formats a  record with a CSV-friendly format, good for log files"""
         duration = datetime.fromtimestamp(record.relativeCreated / 1000, timezone.utc)
         record.delta = duration.strftime("%H:%M:%S")
         formatter = super()
         return formatter.format(record)
 
 
-def configConsoleHandler(logger: Logger, formatter: Formatter = ColourFormatter(), dbgLevel: int = DEBUG) -> None:
+def configConsoleHandler(logger: Logger, formatter: Formatter | None = None, dbgLevel: int = DEBUG) -> None:
     """Configures a logger to print to Console with a custom formatter
 
     Args:
@@ -204,7 +209,8 @@ def configConsoleHandler(logger: Logger, formatter: Formatter = ColourFormatter(
         formatter (Formatter): an instance of Formatter, to format the records
         dbgLevel (int): the minimum debug level to log
     """
-
+    if not formatter:
+        formatter = ColourFormatter()
     # Set the minimum level of the logger, but only if it's not set, or is set to something higher than the current
     # desired level
     if logger.level == NOTSET or logger.level > dbgLevel:
@@ -217,9 +223,7 @@ def configConsoleHandler(logger: Logger, formatter: Formatter = ColourFormatter(
     logger.addHandler(stdout_handler)
 
 
-def configFileHandler(
-    logger: Logger, filename: str, formatter: Formatter = ColourFormatter(), dbgLevel: int = DEBUG
-) -> None:
+def configFileHandler(logger: Logger, filename: str, formatter: Formatter | None = None, dbgLevel: int = DEBUG) -> None:
     """Configures a logger to print to Console with a custom formatter
 
     Args:
@@ -228,7 +232,8 @@ def configFileHandler(
         formatter (Formatter): an instance of Formatter, to format the records
         dbgLevel (int): the minimum debug level to log
     """
-
+    if not formatter:
+        formatter = ColourFormatter()
     # Set the minimum level of the logger, but only if it's not set, or is set to something higher than the current
     # desired level
     if logger.level == NOTSET or logger.level > dbgLevel:

@@ -23,7 +23,7 @@ from ui.mediaFileViewer import Ui_MediaFileViewer
 from ui.renameWarningDialog import Ui_renameWarningDialog
 
 # My own modules
-from customLogger import configConsoleHandler, emojiFormatter
+from customLogger import EmojiFormatter, configConsoleHandler
 from MassRenamer.MassRenamerClasses import (
     IMAGE_EXTENSIONS,
     VIDEO_EXTENSIONS,
@@ -168,12 +168,12 @@ class Window(QWidget, Ui_MainWindow):
         self.updateProgressSignal.updateProgress.connect(self.progressBar.setValue)
 
         ### Non-UI Stuff
-        # Get root logger and set the emojiFormatter
+        # Get root logger and set the EmojiFormatter
         rootLogger = getLogger()
         rootLogger.setLevel(DEBUG)
         # Just for some specific situations, add a console logger, but only log warnings and errors (change to errors
         # if found to verbose)
-        configConsoleHandler(rootLogger, emojiFormatter())
+        configConsoleHandler(rootLogger, EmojiFormatter())
 
     def _setupUI(self):
         self.setupUi(self)  # pyright: ignore[reportUnknownMemberType]
