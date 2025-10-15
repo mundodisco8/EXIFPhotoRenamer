@@ -755,6 +755,9 @@ class MediaFile:
             elif model.lower() == "oneplus a5010":
                 # OnePlus adds the Make to the model, and uses the model number instead of the common name
                 retVal = make + " 5T"
+            elif model.lower() == "c6603":
+                # Sony Xperia Z
+                retVal = "Sony Xperia Z"
             else:
                 retVal = make + " " + model
 
